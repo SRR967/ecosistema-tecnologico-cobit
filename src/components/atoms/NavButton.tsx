@@ -19,24 +19,39 @@ export default function NavButton({
     "px-4 py-2 rounded-md transition-colors duration-200 text-b1";
 
   const variantStyles = {
-    default: isActive
-      ? "text-cobit-red font-bold"
-      : "text-cobit-blue hover:text-cobit-red hover:bg-gray-50 font-medium",
-    primary: "bg-cobit-blue text-white hover:bg-opacity-90 font-medium",
+    default: isActive ? "font-bold" : "hover:bg-gray-50 font-medium",
+    primary: isActive
+      ? "font-bold bg-transparent border-2"
+      : "text-white font-medium",
   };
+
+  // Estilos dinámicos usando CSS variables
+  const dynamicStyles = isActive
+    ? {
+        color: "var(--cobit-red)",
+        borderColor:
+          isActive && variant === "primary" ? "var(--cobit-red)" : undefined,
+      }
+    : variant === "primary"
+    ? { backgroundColor: "var(--cobit-blue)" }
+    : { color: "var(--cobit-blue)" };
 
   const combinedClassName = `${baseStyles} ${variantStyles[variant]} ${className}`;
 
   if (href) {
     return (
-      <a href={href} className={combinedClassName}>
+      <a href={href} className={combinedClassName} style={dynamicStyles}>
         {children}
       </a>
     );
   }
 
   return (
-    <button onClick={onClick} className={combinedClassName}>
+    <button
+      onClick={onClick}
+      className={combinedClassName}
+      style={dynamicStyles}
+    >
       {children}
     </button>
   );
