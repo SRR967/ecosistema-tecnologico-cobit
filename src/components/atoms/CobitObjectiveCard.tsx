@@ -37,7 +37,6 @@ export default function CobitObjectiveCard({
         border: isSelected
           ? `3px solid ${getDomainColor()}`
           : `2px solid ${getDomainColor()}`,
-        ringColor: isSelected ? getDomainColor() : undefined,
         boxShadow: isSelected
           ? `0 0 0 1px ${getDomainColor()}, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`
           : undefined,

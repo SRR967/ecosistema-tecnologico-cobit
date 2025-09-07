@@ -24,9 +24,8 @@ export default function FilterSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 b1 text-black"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 b1 text-black"
         style={{
-          focusRingColor: "var(--cobit-blue)",
           maxWidth: "280px",
           overflow: "hidden",
           textOverflow: "ellipsis",
