@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 interface NavButtonProps {
   children: React.ReactNode;
   href?: string;
@@ -40,9 +42,9 @@ export default function NavButton({
 
   if (href) {
     return (
-      <a href={href} className={combinedClassName} style={dynamicStyles}>
+      <Link href={href} className={combinedClassName} style={dynamicStyles}>
         {children}
-      </a>
+      </Link>
     );
   }
 
