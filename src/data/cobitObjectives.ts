@@ -4,6 +4,24 @@ export interface CobitObjective {
   domain: 'EDM' | 'APO' | 'BAI' | 'DSS' | 'MEA';
 }
 
+// Interface compatible con la base de datos
+export interface OGGObjective {
+  id: string;           // Código del objetivo (ej: APO01)
+  nombre: string;       // Nombre del objetivo
+  descripcion: string;  // Descripción
+  proposito: string;    // Propósito
+}
+
+// Función para convertir OGG de BD a CobitObjective
+export function oggToCobitObjective(ogg: OGGObjective): CobitObjective {
+  const domain = ogg.id.substring(0, 3) as 'EDM' | 'APO' | 'BAI' | 'DSS' | 'MEA';
+  return {
+    code: ogg.id,
+    title: ogg.nombre,
+    domain: domain
+  };
+}
+
 export const cobitObjectives: CobitObjective[] = [
   // EDM - Evaluate, Direct and Monitor
   { code: 'EDM01', title: 'Ensured Governance Framework Setting and Maintenance', domain: 'EDM' },

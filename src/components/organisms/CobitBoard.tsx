@@ -3,9 +3,10 @@
 import { useState } from "react";
 import DomainSection from "../molecules/DomainSection";
 import {
-  getDomainObjectives,
+  useCobitBoard,
+  getObjectivesByDomain,
   getDomainTitle,
-} from "../../data/cobitObjectives";
+} from "../../hooks/useCobitBoard";
 
 interface ObjectiveWithLevel {
   code: string;
@@ -23,6 +24,9 @@ export default function CobitBoard({
   onObjectiveToggle,
   className = "",
 }: CobitBoardProps) {
+  // Cargar objetivos desde la base de datos
+  const { objectives, loading, error } = useCobitBoard();
+
   const handleObjectiveClick = (code: string) => {
     onObjectiveToggle?.(code);
   };
@@ -35,6 +39,56 @@ export default function CobitBoard({
     return selectedObjectives.some((obj) => obj.code === code);
   };
 
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div
+        className={`w-full h-full flex items-center justify-center ${className}`}
+      >
+        <div className="text-center">
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+            style={{ borderColor: "var(--cobit-red)" }}
+          ></div>
+          <h3
+            className="text-xl font-bold mb-2"
+            style={{ color: "var(--cobit-blue)" }}
+          >
+            Cargando Objetivos COBIT
+          </h3>
+          <p className="text-gray-600 b1">Conectando con la base de datos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error si ocurre
+  if (error) {
+    return (
+      <div
+        className={`w-full h-full flex items-center justify-center ${className}`}
+      >
+        <div className="text-center">
+          <div className="text-red-500 text-4xl mb-4">⚠️</div>
+          <h3
+            className="text-xl font-bold mb-2"
+            style={{ color: "var(--cobit-red)" }}
+          >
+            Error al cargar objetivos
+          </h3>
+          <p className="text-red-600 b1 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
+            style={{ backgroundColor: "var(--cobit-blue)" }}
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`w-full h-full flex flex-col ${className}`}>
       {/* Layout principal del tablero COBIT */}
@@ -44,7 +98,7 @@ export default function CobitBoard({
           <DomainSection
             domain="EDM"
             title={getDomainTitle("EDM")}
-            objectives={getDomainObjectives("EDM")}
+            objectives={getObjectivesByDomain(objectives, "EDM")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
             layout="horizontal"
@@ -57,7 +111,7 @@ export default function CobitBoard({
           <DomainSection
             domain="APO"
             title={getDomainTitle("APO")}
-            objectives={getDomainObjectives("APO")}
+            objectives={getObjectivesByDomain(objectives, "APO")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
             layout="horizontal"
@@ -67,7 +121,7 @@ export default function CobitBoard({
           <DomainSection
             domain="BAI"
             title={getDomainTitle("BAI")}
-            objectives={getDomainObjectives("BAI")}
+            objectives={getObjectivesByDomain(objectives, "BAI")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
             layout="horizontal"
@@ -77,7 +131,7 @@ export default function CobitBoard({
           <DomainSection
             domain="DSS"
             title={getDomainTitle("DSS")}
-            objectives={getDomainObjectives("DSS")}
+            objectives={getObjectivesByDomain(objectives, "DSS")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
             layout="horizontal"
@@ -89,7 +143,7 @@ export default function CobitBoard({
           <DomainSection
             domain="MEA"
             title={getDomainTitle("MEA")}
-            objectives={getDomainObjectives("MEA")}
+            objectives={getObjectivesByDomain(objectives, "MEA")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
             layout="vertical"

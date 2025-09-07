@@ -1,5 +1,8 @@
+"use client";
+
 import FilterSelect from "../atoms/FilterSelect";
 import ToggleButtonGroup from "../atoms/ToggleButtonGroup";
+import { useCobitData } from "../../hooks/useCobitData";
 
 interface FilterSidebarProps {
   filters: {
@@ -23,40 +26,72 @@ export default function FilterSidebar({
   onViewModeChange,
   className = "",
 }: FilterSidebarProps) {
-  // Datos de ejemplo - en un caso real vendrían de una API o estado global
-  const dominioOptions = [
-    "EDM - Evaluar, Orientar y Monitorear",
-    "APO - Alinear, Planificar y Organizar",
-    "BAI - Construir, Adquirir e Implementar",
-    "DSS - Entregar, Dar Servicio y Soporte",
-    "MEA - Monitorear, Evaluar y Valorar",
-  ];
-  const objetivoOptions = [
-    "EDM01",
-    "EDM02",
-    "APO01",
-    "APO02",
-    "BAI01",
-    "BAI02",
-    "DSS01",
-    "DSS02",
-    "MEA01",
-    "MEA02",
-  ];
-  const herramientaOptions = [
-    "Microsoft Project",
-    "Jira",
-    "ServiceNow",
-    "Tableau",
-    "Power BI",
-    "Git",
-    "Jenkins",
-  ];
+  // Cargar datos desde la base de datos
+  const { dominios, objetivos, herramientas, loading, error } = useCobitData();
+
+  // Transformar datos para los selectores
+  const dominioOptions = dominios.map(
+    (dominio) => `${dominio.code} - ${dominio.name}`
+  );
+
+  const objetivoOptions = objetivos.map((objetivo) => objetivo.id);
+
+  const herramientaOptions = herramientas.map((herramienta) => herramienta.id);
+
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div className={`w-80 p-6 ${className}`}>
+        <div className="space-y-6">
+          <h2
+            className="text-2xl font-bold"
+            style={{ color: "var(--cobit-blue)" }}
+          >
+            Filtros
+          </h2>
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div
+                className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2"
+                style={{ borderColor: "var(--cobit-blue)" }}
+              ></div>
+              <p className="text-gray-600 b1">Cargando datos...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error si ocurre
+  if (error) {
+    return (
+      <div className={`w-80 p-6 ${className}`}>
+        <div className="space-y-6">
+          <h2
+            className="text-2xl font-bold"
+            style={{ color: "var(--cobit-blue)" }}
+          >
+            Filtros
+          </h2>
+          <div className="text-center py-8">
+            <div className="text-red-500 mb-2">⚠️</div>
+            <p className="text-red-600 b1">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-2 px-4 py-2 text-sm rounded-md"
+              style={{ backgroundColor: "var(--cobit-blue)", color: "white" }}
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className={`w-80 bg-white shadow-lg border-r border-gray-200 h-full p-6 ${className}`}
-    >
+    <div className={`w-80 p-6 ${className}`}>
       <div className="space-y-6">
         {/* Título */}
         <h2

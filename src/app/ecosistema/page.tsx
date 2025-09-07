@@ -28,17 +28,20 @@ export default function EcosistemaPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex flex-col">
       <NavBar currentPath="/ecosistema" />
 
-      <div className="flex">
-        {/* Sidebar */}
-        <FilterSidebar
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-        />
+      <div className="flex flex-1">
+        {/* Sidebar con márgenes y bordes */}
+        <div className="ml-6 mt-6 mb-6 flex">
+          <FilterSidebar
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 h-full"
+          />
+        </div>
 
         {/* Main Content */}
         <div className="flex-1 p-8">
