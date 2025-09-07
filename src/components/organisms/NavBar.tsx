@@ -6,7 +6,7 @@ const navigationItems = [
   { label: "Ecosistema", href: "/ecosistema" },
   {
     label: "Crear tu Ecosistema",
-    href: "/crear-ecosistema",
+    href: "/crear",
     variant: "primary" as const,
   },
 ];
