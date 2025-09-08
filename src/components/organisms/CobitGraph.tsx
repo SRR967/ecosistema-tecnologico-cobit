@@ -2,10 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import * as d3 from "d3";
-import { useCobitGraph, GraphFilters } from "../../hooks/useCobitGraph";
+import {
+  useCobitGraph,
+  GraphFilters,
+  SelectedObjective,
+} from "../../hooks/useCobitGraph";
 
 interface CobitGraphProps {
   filters: GraphFilters;
+  selectedObjectives?: SelectedObjective[];
   className?: string;
 }
 
@@ -82,9 +87,10 @@ function getImageName(toolId: string): string {
 
 export default function CobitGraph({
   filters,
+  selectedObjectives,
   className = "",
 }: CobitGraphProps) {
-  const { data, loading, error } = useCobitGraph(filters);
+  const { data, loading, error } = useCobitGraph(filters, selectedObjectives);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
@@ -187,18 +193,10 @@ export default function CobitGraph({
       return Math.max(baseSize, Math.min(maxSize, calculatedSize));
     }
 
-    // Debug: Mostrar estadísticas de conectividad
-    console.log("📊 Estadísticas de Conectividad de Herramientas:");
+    // Calcular tamaños de nodos de herramientas basado en conectividad
     const sortedTools = Array.from(toolConnectionCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10); // Top 10
-
-    sortedTools.forEach(([toolId, connections]) => {
-      const size = getToolNodeSize(toolId);
-      console.log(
-        `🔧 ${toolId}: ${connections} conexiones → ${Math.round(size)}px`
-      );
-    });
 
     // Configurar simulación de fuerzas
     const simulation = d3
@@ -515,6 +513,11 @@ export default function CobitGraph({
 
   // Sin datos
   if (data.nodes.length === 0) {
+    const hasSelectedObjectives =
+      selectedObjectives && selectedObjectives.length > 0;
+    const hasTraditionalFilters = filters.dominio || filters.herramienta;
+    const isSpecificObjectiveMode = selectedObjectives !== undefined;
+
     return (
       <div className={`flex items-center justify-center h-96 ${className}`}>
         <div className="text-center">
@@ -523,11 +526,14 @@ export default function CobitGraph({
             className="text-xl font-bold mb-2"
             style={{ color: "var(--cobit-blue)" }}
           >
-            No hay relaciones disponibles
+            {isSpecificObjectiveMode && !hasSelectedObjectives
+              ? "Selecciona objetivos para visualizar el ecosistema"
+              : "No hay relaciones disponibles"}
           </h3>
           <p className="text-gray-600 b1">
-            Ajusta los filtros para ver las conexiones entre objetivos y
-            herramientas.
+            {isSpecificObjectiveMode && !hasSelectedObjectives
+              ? "Ve a 'Crear tu Ecosistema' para seleccionar objetivos COBIT con sus niveles de capacidad, o usa los filtros laterales."
+              : "Ajusta los filtros para ver las conexiones entre objetivos y herramientas."}
           </p>
         </div>
       </div>

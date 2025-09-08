@@ -23,6 +23,22 @@ export async function GET(request: Request) {
     const dominio = searchParams.get('dominio');
     const objetivo = searchParams.get('objetivo');
     const herramienta = searchParams.get('herramienta');
+    
+    // Nuevos parámetros para objetivos específicos con niveles
+    const selectedObjectives: { code: string; level: number }[] = [];
+    
+    // Buscar todos los parámetros que empiecen con 'obj_'
+    searchParams.forEach((value, key) => {
+      if (key.startsWith('obj_')) {
+        const [code, level] = value.split(':');
+        if (code && level) {
+          selectedObjectives.push({
+            code: code,
+            level: parseInt(level, 10)
+          });
+        }
+      }
+    });
 
     // Query base con todos los joins
     let query = `
@@ -71,6 +87,27 @@ export async function GET(request: Request) {
       query += ` AND h.id = $${paramIndex}`;
       params.push(herramienta);
       paramIndex++;
+    }
+    
+    // Filtro por objetivos específicos con niveles de capacidad
+    if (selectedObjectives.length > 0) {
+      // Crear condiciones para cada objetivo seleccionado
+      const objectiveConditions: string[] = [];
+      
+      selectedObjectives.forEach((obj) => {
+        // Filtrar por objetivo específico Y nivel de capacidad máximo
+        objectiveConditions.push(
+          `(o.id = $${paramIndex} AND a.nivel_capacidad <= $${paramIndex + 1})`
+        );
+        params.push(obj.code);
+        params.push(obj.level);
+        paramIndex += 2;
+      });
+      
+      // Unir todas las condiciones con OR
+      if (objectiveConditions.length > 0) {
+        query += ` AND (${objectiveConditions.join(' OR ')})`;
+      }
     }
 
     query += ` ORDER BY o.id, p.practica_id, a.actividad_id`;
