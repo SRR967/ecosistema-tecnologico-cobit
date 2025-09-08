@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import CapabilityLevelSelect from "../atoms/CapabilityLevelSelect";
 
 interface CapabilityModalProps {
@@ -20,6 +20,12 @@ export default function CapabilityModal({
 }: CapabilityModalProps) {
   const [selectedLevel, setSelectedLevel] = useState(currentLevel);
   const [isAnimating, setIsAnimating] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setIsAnimating(false);
+    // Delay para que la animación de salida se complete
+    setTimeout(() => onClose(), 200);
+  }, [onClose]);
 
   // Resetear el nivel seleccionado cuando se abre el modal y manejar animación
   useEffect(() => {
@@ -49,19 +55,13 @@ export default function CapabilityModal({
       document.removeEventListener("keydown", handleEsc);
       document.body.style.overflow = "unset";
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, handleClose]);
 
   if (!isOpen) return null;
 
   const handleConfirm = () => {
     onLevelSelect(selectedLevel);
     onClose();
-  };
-
-  const handleClose = () => {
-    setIsAnimating(false);
-    // Delay para que la animación de salida se complete
-    setTimeout(() => onClose(), 200);
   };
 
   return (

@@ -3,6 +3,31 @@
 import jsPDF from "jspdf";
 import { TablaCobitRow } from "./useCobitTable";
 
+// Tipo extendido para jsPDF con autoTable
+interface AutoTableOptions {
+  head: string[][];
+  body: (string | number)[][];
+  startY: number;
+  styles?: Record<string, unknown>;
+  headStyles?: Record<string, unknown>;
+  alternateRowStyles?: Record<string, unknown>;
+  margin?: Record<string, number>;
+  tableWidth?: string | number;
+  columnStyles?: Record<number, Record<string, unknown>>;
+  pageBreak?: string;
+  showHead?: string;
+  theme?: string;
+  addPageContent?: () => void;
+  didParseCell?: (data: { row: { index: number }; cell: { styles: Record<string, unknown> } }) => void;
+}
+
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: AutoTableOptions) => void;
+  lastAutoTable: {
+    finalY: number;
+  };
+}
+
 // Importar autoTable dinámicamente para evitar problemas de SSR
 let autoTableLoaded = false;
 
@@ -42,7 +67,7 @@ export function usePDFExport() {
       const { tableData, filters, selectedObjectives = [], isSpecificMode = false } = data;
       
       // Crear nuevo documento PDF
-      const doc = new jsPDF();
+      const doc = new jsPDF() as jsPDFWithAutoTable;
       const pageWidth = doc.internal.pageSize.width;
       const pageHeight = doc.internal.pageSize.height;
       
@@ -129,8 +154,8 @@ export function usePDFExport() {
       }
       
       // Generar tabla de filtros
-      if (typeof (doc as any).autoTable === 'function') {
-        (doc as any).autoTable({
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
           head: [["Tipo de Filtro", "Valor"]],
           body: filtrosData,
           startY: yPosition,
@@ -155,7 +180,7 @@ export function usePDFExport() {
             1: { cellWidth: 'auto' }
           }
         });
-        yPosition = (doc as any).lastAutoTable.finalY + 15;
+        yPosition = doc.lastAutoTable.finalY + 15;
       } else {
         // Fallback manual para filtros
         doc.setFontSize(9);
@@ -228,8 +253,8 @@ export function usePDFExport() {
         ]);
         
         // Generar tabla de cobertura
-        if (typeof (doc as any).autoTable === 'function') {
-          (doc as any).autoTable({
+        if (typeof doc.autoTable === 'function') {
+          doc.autoTable({
             head: [["#", "Herramienta", "Categoría", "Actividades", "% Cobertura"]],
             body: coberturaData,
             startY: yPosition,
@@ -257,14 +282,14 @@ export function usePDFExport() {
             margin: { left: 10, right: 10, bottom: 50 },
             tableWidth: 'auto',
             // Estilo especial para la fila de totales
-            didParseCell: function (data: any) {
+            didParseCell: function (data: { row: { index: number }; cell: { styles: Record<string, unknown> } }) {
               if (data.row.index === coberturaData.length - 1) {
                 data.cell.styles.fontStyle = 'bold';
                 data.cell.styles.fillColor = [230, 230, 230];
               }
             }
           });
-          yPosition = (doc as any).lastAutoTable.finalY + 15;
+          yPosition = doc.lastAutoTable.finalY + 15;
         } else {
           // Fallback manual para cobertura
           doc.setFontSize(8);
@@ -336,9 +361,9 @@ export function usePDFExport() {
         ]);
         
         // Verificar si autoTable está disponible después de la carga dinámica
-        if (typeof (doc as any).autoTable === 'function') {
+        if (typeof doc.autoTable === 'function') {
           // Generar tabla usando autoTable con configuración mejorada
-          (doc as any).autoTable({
+          doc.autoTable({
             head: [tableHeaders],
             body: tableRows,
             startY: yPosition,
@@ -375,7 +400,7 @@ export function usePDFExport() {
             showHead: "everyPage",
             theme: 'striped',
             // Configuración adicional para el pie de página
-            addPageContent: function(data: any) {
+            addPageContent: function() {
               // Esta función se ejecuta después de agregar contenido en cada página
             }
           });
@@ -480,7 +505,7 @@ export function usePDFExport() {
       
       // **PIE DE PÁGINA** (en todas las páginas)
       const addFooterToAllPages = () => {
-        const pageCount = (doc as any).internal.getNumberOfPages();
+        const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
           doc.setPage(i);
           

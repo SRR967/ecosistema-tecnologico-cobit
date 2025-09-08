@@ -71,9 +71,9 @@ export default function CrearEcosistemaPage() {
     setModalState((prev) => ({ ...prev, isOpen: false }));
   };
 
-  const getObjectiveLevel = (code: string): number | undefined => {
-    return selectedObjectives.find((obj) => obj.code === code)?.level;
-  };
+  // const getObjectiveLevel = (code: string): number | undefined => {
+  //   return selectedObjectives.find((obj) => obj.code === code)?.level;
+  // };
 
   // Funciones para manejar el ecosistema creado
   const handleFilterChange = (

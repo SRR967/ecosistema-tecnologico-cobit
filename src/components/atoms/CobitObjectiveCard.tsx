@@ -11,7 +11,7 @@ interface CobitObjectiveCardProps {
 export default function CobitObjectiveCard({
   code,
   title,
-  domain,
+  // domain,
   isSelected = false,
   capabilityLevel,
   onClick,

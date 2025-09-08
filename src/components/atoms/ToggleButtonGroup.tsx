@@ -22,7 +22,7 @@ export default function ToggleButtonGroup({
         {label}
       </label>
       <div className="flex bg-gray-100 rounded-lg p-1">
-        {options.map((option, index) => (
+        {options.map((option) => (
           <button
             key={option.value}
             onClick={() => onChange(option.value)}

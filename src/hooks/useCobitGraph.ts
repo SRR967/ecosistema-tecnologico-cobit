@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface GrafoNode {
   id: string;
@@ -46,14 +46,14 @@ export function useCobitGraph(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       // Solo no cargar datos si hay objetivos específicos seleccionados pero están vacíos
       // o si estamos en modo de objetivos específicos sin nada seleccionado
-      const hasSelectedObjectives = selectedObjectives && selectedObjectives.length > 0;
+      // const hasSelectedObjectives = selectedObjectives && selectedObjectives.length > 0;
       
       // Si se pasaron selectedObjectives (array vacío), significa que venimos del modo específico
       // pero no hay objetivos seleccionados, así que no mostrar nada
@@ -90,11 +90,11 @@ export function useCobitGraph(
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.dominio, filters.herramienta, selectedObjectives]);
 
   useEffect(() => {
     fetchData();
-  }, [filters.dominio, filters.herramienta, selectedObjectives]);
+  }, [fetchData]);
 
   return {
     data,

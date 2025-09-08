@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Configuración para Docker
+  output: 'standalone',
+  // Optimizaciones adicionales
+  serverExternalPackages: ['pg']
 };
 
 export default nextConfig;

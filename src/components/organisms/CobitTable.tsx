@@ -171,8 +171,8 @@ export default function CobitTable({
   if (data.length === 0) {
     const hasSelectedObjectives =
       selectedObjectives && selectedObjectives.length > 0;
-    const hasTraditionalFilters =
-      filters.dominio || filters.objetivo || filters.herramienta;
+    // const hasTraditionalFilters =
+    //   filters.dominio || filters.objetivo || filters.herramienta;
     const isSpecificObjectiveMode = selectedObjectives !== undefined;
 
     return (
