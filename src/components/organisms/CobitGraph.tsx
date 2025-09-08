@@ -6,7 +6,10 @@ import {
   useCobitGraph,
   GraphFilters,
   SelectedObjective,
+  GrafoNode,
+  GrafoLink,
 } from "../../hooks/useCobitGraph";
+import { D3SimulationNode, D3SimulationLink } from "../../types/database";
 
 interface CobitGraphProps {
   filters: GraphFilters;
@@ -110,7 +113,7 @@ export default function CobitGraph({
     svg.attr("width", width).attr("height", height);
 
     // Crear defs para patrones de imágenes
-    const defs = svg.append("defs");
+    svg.append("defs");
 
     // Crear grupo principal con zoom
     const g = svg.append("g");
@@ -128,11 +131,9 @@ export default function CobitGraph({
     svg.call(zoom);
 
     // Evento para resetear selección al hacer clic en el fondo
-    svg.on("click", function (event: any) {
-      if (
-        event.target === event.currentTarget ||
-        event.target.tagName === "svg"
-      ) {
+    svg.on("click", function (event: MouseEvent) {
+      const target = event.target as SVGElement;
+      if (target === event.currentTarget || target.tagName === "svg") {
         selectedNodeId = null;
       }
     });
@@ -142,15 +143,13 @@ export default function CobitGraph({
       const connectionCounts = new Map<string, number>();
 
       // Calcular conexiones para cada herramienta
-      data.links.forEach((link: any) => {
-        const sourceId =
-          typeof link.source === "string" ? link.source : link.source.id;
-        const targetId =
-          typeof link.target === "string" ? link.target : link.target.id;
+      data.links.forEach((link) => {
+        const sourceId = link.source as string;
+        const targetId = link.target as string;
 
         // Identificar qué nodo es herramienta y cuál es objetivo
-        const sourceNode = data.nodes.find((n: any) => n.id === sourceId);
-        const targetNode = data.nodes.find((n: any) => n.id === targetId);
+        const sourceNode = data.nodes.find((n: GrafoNode) => n.id === sourceId);
+        const targetNode = data.nodes.find((n: GrafoNode) => n.id === targetId);
 
         if (sourceNode?.type === "herramienta") {
           connectionCounts.set(
@@ -194,27 +193,28 @@ export default function CobitGraph({
     }
 
     // Calcular tamaños de nodos de herramientas basado en conectividad
-    const sortedTools = Array.from(toolConnectionCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10); // Top 10
+    // const sortedTools = Array.from(toolConnectionCounts.entries())
+    //   .sort((a, b) => b[1] - a[1])
+    //   .slice(0, 10); // Top 10
 
     // Configurar simulación de fuerzas
     const simulation = d3
-      .forceSimulation(data.nodes as any)
+      .forceSimulation(data.nodes as D3SimulationNode[])
       .force(
         "link",
         d3
           .forceLink(data.links)
-          .id((d: any) => d.id)
+          .id((d) => (d as D3SimulationNode).id)
           .distance(100)
       )
       .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force(
         "collision",
-        d3.forceCollide().radius((d: any) => {
-          if (d.type === "herramienta") {
-            return getToolNodeSize(d.id) + 5; // Radio dinámico + padding
+        d3.forceCollide().radius((d) => {
+          const node = d as D3SimulationNode;
+          if (node.type === "herramienta") {
+            return getToolNodeSize(node.id) + 5; // Radio dinámico + padding
           }
           return 25; // Radio fijo para objetivos (20 + padding)
         })
@@ -230,7 +230,7 @@ export default function CobitGraph({
       .append("line")
       .attr("stroke", "#999")
       .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", (d: any) => Math.sqrt(d.count * 2));
+      .attr("stroke-width", (d: GrafoLink) => Math.sqrt(d.count * 2));
 
     // Crear nodos
     const node = g
@@ -243,14 +243,14 @@ export default function CobitGraph({
       .attr("class", "node")
       .call(
         d3
-          .drag<any, any>()
+          .drag<SVGGElement, D3SimulationNode>()
           .on("start", dragstarted)
           .on("drag", dragged)
-          .on("end", dragended) as any
+          .on("end", dragended)
       );
 
     // Nodos diferenciados: círculos para objetivos, imágenes para herramientas
-    node.each(function (d: any) {
+    node.each(function (d: GrafoNode) {
       const nodeElement = d3.select(this);
 
       if (d.type === "objetivo") {
@@ -308,7 +308,7 @@ export default function CobitGraph({
     // Etiquetas de nodos
     node
       .append("text")
-      .text((d: any) => d.id)
+      .text((d: GrafoNode) => d.id)
       .attr("font-size", "10px")
       .attr("dx", 25)
       .attr("dy", 4)
@@ -331,7 +331,7 @@ export default function CobitGraph({
 
     // Eventos de tooltip para nodos
     node
-      .on("mouseover", function (event: any, d: any) {
+      .on("mouseover", function (event: MouseEvent, d: GrafoNode) {
         tooltip.transition().duration(200).style("opacity", 0.9);
         let content = "";
 
@@ -352,7 +352,7 @@ export default function CobitGraph({
       .on("mouseout", function () {
         tooltip.transition().duration(500).style("opacity", 0);
       })
-      .on("click", function (event: any, d: any) {
+      .on("click", function (event: MouseEvent, d: GrafoNode) {
         event.stopPropagation();
 
         // Click simple en nodos (funcionalidad de highlight removida)
@@ -365,11 +365,13 @@ export default function CobitGraph({
 
     // Eventos de tooltip para enlaces
     link
-      .on("mouseover", function (event: any, d: any) {
+      .on("mouseover", function (event: MouseEvent, d: D3SimulationLink) {
         tooltip.transition().duration(200).style("opacity", 0.9);
+        const source = typeof d.source === "string" ? d.source : d.source.id;
+        const target = typeof d.target === "string" ? d.target : d.target.id;
         tooltip
           .html(
-            `<strong>${d.source.id} → ${d.target.id}</strong><br/>${d.count} actividades`
+            `<strong>${source} → ${target}</strong><br/>${d.count} actividades`
           )
           .style("left", event.pageX + 10 + "px")
           .style("top", event.pageY - 28 + "px");
@@ -381,43 +383,67 @@ export default function CobitGraph({
     // Actualizar posiciones en cada tick
     simulation.on("tick", () => {
       link
-        .attr("x1", (d: any) => d.source.x)
-        .attr("y1", (d: any) => d.source.y)
-        .attr("x2", (d: any) => d.target.x)
-        .attr("y2", (d: any) => d.target.y);
+        .attr(
+          "x1",
+          (d: D3SimulationLink) => (d.source as D3SimulationNode).x || 0
+        )
+        .attr(
+          "y1",
+          (d: D3SimulationLink) => (d.source as D3SimulationNode).y || 0
+        )
+        .attr(
+          "x2",
+          (d: D3SimulationLink) => (d.target as D3SimulationNode).x || 0
+        )
+        .attr(
+          "y2",
+          (d: D3SimulationLink) => (d.target as D3SimulationNode).y || 0
+        );
 
-      node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+      node.attr(
+        "transform",
+        (d: D3SimulationNode) => `translate(${d.x || 0},${d.y || 0})`
+      );
     });
 
     // Funciones de drag
-    function dragstarted(event: any, d: any) {
+    function dragstarted(
+      event: d3.D3DragEvent<SVGGElement, D3SimulationNode, D3SimulationNode>,
+      d: D3SimulationNode
+    ) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
       d.fx = d.x;
       d.fy = d.y;
     }
 
-    function dragged(event: any, d: any) {
+    function dragged(
+      event: d3.D3DragEvent<SVGGElement, D3SimulationNode, D3SimulationNode>,
+      d: D3SimulationNode
+    ) {
       d.fx = event.x;
       d.fy = event.y;
     }
 
-    function dragended(event: any, d: any) {
+    function dragended(
+      event: d3.D3DragEvent<SVGGElement, D3SimulationNode, D3SimulationNode>,
+      d: D3SimulationNode
+    ) {
       if (!event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
     }
 
-    // Función para obtener color por dominio
-    function getDomainColor(domain?: string) {
-      const colors: { [key: string]: string } = {
-        EDM: "#ef4444", // rojo
-        APO: "#3b82f6", // azul
-        BAI: "#10b981", // verde
-        DSS: "#f59e0b", // amarillo
-        MEA: "#8b5cf6", // púrpura
-      };
-      return colors[domain || ""] || "#6b7280"; // gris por defecto
-    }
+    // Función para obtener color por dominio (comentada - no utilizada actualmente)
+    // function getDomainColor(domain?: string) {
+    //   const colors: { [key: string]: string } = {
+    //     EDM: "#ef4444", // rojo
+    //     APO: "#3b82f6", // azul
+    //     BAI: "#10b981", // verde
+    //     DSS: "#f59e0b", // amarillo
+    //     MEA: "#8b5cf6", // púrpura
+    //   };
+    //   return colors[domain || ""] || "#6b7280"; // gris por defecto
+    // }
 
     // Código duplicado eliminado - ya está arriba
 
@@ -436,20 +462,14 @@ export default function CobitGraph({
   const handleZoomIn = () => {
     if (svgRef.current && zoomRef.current) {
       const svg = d3.select(svgRef.current);
-      svg
-        .transition()
-        .duration(300)
-        .call(zoomRef.current.scaleBy as any, 1.5);
+      svg.transition().duration(300).call(zoomRef.current.scaleBy, 1.5);
     }
   };
 
   const handleZoomOut = () => {
     if (svgRef.current && zoomRef.current) {
       const svg = d3.select(svgRef.current);
-      svg
-        .transition()
-        .duration(300)
-        .call(zoomRef.current.scaleBy as any, 0.67);
+      svg.transition().duration(300).call(zoomRef.current.scaleBy, 0.67);
     }
   };
 
@@ -459,7 +479,7 @@ export default function CobitGraph({
       svg
         .transition()
         .duration(500)
-        .call(zoomRef.current.transform as any, d3.zoomIdentity);
+        .call(zoomRef.current.transform, d3.zoomIdentity);
     }
   };
 
@@ -515,7 +535,7 @@ export default function CobitGraph({
   if (data.nodes.length === 0) {
     const hasSelectedObjectives =
       selectedObjectives && selectedObjectives.length > 0;
-    const hasTraditionalFilters = filters.dominio || filters.herramienta;
+    // const hasTraditionalFilters = filters.dominio || filters.herramienta;
     const isSpecificObjectiveMode = selectedObjectives !== undefined;
 
     return (

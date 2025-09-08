@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "../../../../lib/database";
+import { HerramientaRow, DBRow } from "../../../../types/database";
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,9 +35,9 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        herramientas: result.rows.map((row: any) => ({
-          id: row.id,
-          categoria: row.categoria
+        herramientas: result.rows.map((row: DBRow): HerramientaRow => ({
+          id: row.id as string,
+          categoria: row.categoria as string
         }))
       });
     }
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
       `(o.id = $${index * 2 + 1} AND a.nivel_capacidad <= $${index * 2 + 2})`
     ).join(' OR ');
     
-    const values: any[] = [];
+    const values: (string | number)[] = [];
     selectedObjectives.forEach(obj => {
       values.push(obj.code, obj.level);
     });
@@ -65,9 +66,9 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
-      herramientas: result.rows.map((row: any) => ({
-        id: row.id,
-        categoria: row.categoria
+      herramientas: result.rows.map((row: DBRow): HerramientaRow => ({
+        id: row.id as string,
+        categoria: row.categoria as string
       }))
     });
 

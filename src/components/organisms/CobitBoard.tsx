@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+// import { useState } from "react";
 import DomainSection from "../molecules/DomainSection";
 import {
   useCobitBoard,
@@ -31,13 +31,13 @@ export default function CobitBoard({
     onObjectiveToggle?.(code);
   };
 
-  const getObjectiveLevel = (code: string): number | undefined => {
-    return selectedObjectives.find((obj) => obj.code === code)?.level;
-  };
+  // const getObjectiveLevel = (code: string): number | undefined => {
+  //   return selectedObjectives.find((obj) => obj.code === code)?.level;
+  // };
 
-  const isObjectiveSelected = (code: string): boolean => {
-    return selectedObjectives.some((obj) => obj.code === code);
-  };
+  // const isObjectiveSelected = (code: string): boolean => {
+  //   return selectedObjectives.some((obj) => obj.code === code);
+  // };
 
   // Mostrar estado de carga
   if (loading) {

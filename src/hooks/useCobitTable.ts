@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface TablaCobitRow {
   objetivo_id: string;
@@ -44,14 +44,14 @@ export function useCobitTable(
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       // Solo no cargar datos si hay objetivos específicos seleccionados pero están vacíos
       // o si estamos en modo de objetivos específicos sin nada seleccionado
-      const hasSelectedObjectives = selectedObjectives && selectedObjectives.length > 0;
+      // const hasSelectedObjectives = selectedObjectives && selectedObjectives.length > 0;
       
       // Si se pasaron selectedObjectives (array vacío), significa que venimos del modo específico
       // pero no hay objetivos seleccionados, así que no mostrar nada
@@ -92,11 +92,11 @@ export function useCobitTable(
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.dominio, filters.objetivo, filters.herramienta, selectedObjectives]);
 
   useEffect(() => {
     fetchData();
-  }, [filters.dominio, filters.objetivo, filters.herramienta, selectedObjectives]);
+  }, [fetchData]);
 
   return {
     data,
