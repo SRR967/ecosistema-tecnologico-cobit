@@ -21,7 +21,7 @@ function EcosistemaContent() {
 
   const [filters, setFilters] = useState({
     dominio: "",
-    objetivo: "",
+    objetivo: [] as string[],
     herramienta: "",
   });
 
@@ -55,7 +55,7 @@ function EcosistemaContent() {
 
   const handleFilterChange = (
     filterType: "dominio" | "objetivo" | "herramienta",
-    value: string
+    value: string | string[]
   ) => {
     setFilters((prev) => ({
       ...prev,
@@ -70,7 +70,7 @@ function EcosistemaContent() {
   const handleClearFilters = () => {
     setFilters({
       dominio: "",
-      objetivo: "",
+      objetivo: [],
       herramienta: "",
     });
   };
@@ -80,7 +80,7 @@ function EcosistemaContent() {
     setSelectedObjectives([]);
     setFilters({
       dominio: "",
-      objetivo: "",
+      objetivo: [],
       herramienta: "",
     });
     // Limpiar URL
@@ -88,10 +88,10 @@ function EcosistemaContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 overflow-hidden">
       <NavBar currentPath="/ecosistema" />
 
-      <div className="flex">
+      <div className="flex h-full" style={{ height: "calc(100vh - 4rem)" }}>
         {/* Sidebar con márgenes y bordes */}
         <div className="ml-6 mt-6 mb-6 flex-shrink-0">
           <FilterSidebar
@@ -108,21 +108,24 @@ function EcosistemaContent() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1">
-          <div className="w-full">
+        <div className="flex-1 overflow-hidden">
+          <div className="w-full h-full">
             {/* Contenido basado en el modo de vista */}
             {viewMode === "lista" ? (
-              <CobitTable
-                filters={filters}
-                selectedObjectives={
-                  isSpecificMode ? selectedObjectives : undefined
-                }
-                className="shadow-sm"
-              />
+              <div className="h-full overflow-y-auto">
+                <CobitTable
+                  filters={filters}
+                  selectedObjectives={
+                    isSpecificMode ? selectedObjectives : undefined
+                  }
+                  className="shadow-sm"
+                />
+              </div>
             ) : (
               <CobitGraph
                 filters={{
                   dominio: filters.dominio,
+                  objetivo: filters.objetivo,
                   herramienta: filters.herramienta,
                 }}
                 selectedObjectives={

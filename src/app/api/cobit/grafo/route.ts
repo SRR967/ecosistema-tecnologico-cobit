@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const dominio = searchParams.get('dominio');
+    const objetivos = searchParams.getAll('objetivo'); // Cambiar a getAll para múltiples valores
     const herramienta = searchParams.get('herramienta');
     
     // Nuevos parámetros para objetivos específicos con niveles
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
       }
     });
 
-    console.log('🔍 API Grafo - Parámetros:', { dominio, herramienta, selectedObjectives });
+    console.log('🔍 API Grafo - Parámetros:', { dominio, objetivos, herramienta, selectedObjectives });
 
     // Diagnóstico: verificar cada tabla por separado
     try {
@@ -109,6 +110,17 @@ export async function GET(request: Request) {
       query += ` AND o.id LIKE $${paramIndex}`;
       params.push(`${dominioCode}%`);
       paramIndex++;
+    }
+
+    // Filtro por objetivos específicos (múltiples)
+    if (objetivos && objetivos.length > 0) {
+      const objetivoConditions = objetivos.map(() => {
+        const condition = `o.id = $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${objetivoConditions.join(' OR ')})`;
+      params.push(...objetivos);
     }
 
     // Filtro por herramienta

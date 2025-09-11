@@ -1,9 +1,10 @@
 "use client";
 
 import FilterSelect from "../atoms/FilterSelect";
+import MultiSelect from "../atoms/MultiSelect";
 import ToggleButtonGroup from "../atoms/ToggleButtonGroup";
 import { useCobitData } from "../../hooks/useCobitData";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 interface SelectedObjective {
   code: string;
@@ -13,12 +14,12 @@ interface SelectedObjective {
 interface FilterSidebarProps {
   filters: {
     dominio: string;
-    objetivo: string;
+    objetivo: string[];
     herramienta: string;
   };
   onFilterChange: (
     filterType: "dominio" | "objetivo" | "herramienta",
-    value: string
+    value: string | string[]
   ) => void;
   onClearFilters: () => void;
   viewMode: "grafico" | "lista";
@@ -49,12 +50,30 @@ export default function FilterSidebar({
     Array<{ id: string; categoria: string }>
   >([]);
 
+  // Memoizar selectedObjectives para evitar recreaciones innecesarias
+  const memoizedSelectedObjectives = useMemo(
+    () => selectedObjectives,
+    [
+      selectedObjectives?.length,
+      selectedObjectives?.map((obj) => `${obj.code}:${obj.level}`).join(","),
+    ]
+  );
+
+  // Memoizar herramientas para evitar recreaciones innecesarias
+  const memoizedHerramientas = useMemo(
+    () => herramientas,
+    [
+      herramientas?.length,
+      herramientas?.map((h) => `${h.id}:${h.categoria}`).join(","),
+    ]
+  );
+
   // Efecto para cargar herramientas filtradas en modo específico
   useEffect(() => {
-    if (isSpecificMode && selectedObjectives.length > 0) {
+    if (isSpecificMode && memoizedSelectedObjectives.length > 0) {
       // Crear parámetros para la API igual que en useCobitTable
       const params = new URLSearchParams();
-      selectedObjectives.forEach((obj, index) => {
+      memoizedSelectedObjectives.forEach((obj, index) => {
         params.append(`obj_${index}`, `${obj.code}:${obj.level}`);
       });
 
@@ -70,27 +89,32 @@ export default function FilterSidebar({
           console.error("Error cargando herramientas filtradas:", error);
           // Fallback: usar todas las herramientas
           setHerramientasFiltradas(
-            herramientas.map((h) => ({ id: h.id, categoria: h.categoria }))
+            memoizedHerramientas.map((h) => ({
+              id: h.id,
+              categoria: h.categoria,
+            }))
           );
         });
     } else {
       // En modo normal, usar todas las herramientas
       setHerramientasFiltradas(
-        herramientas.map((h) => ({ id: h.id, categoria: h.categoria }))
+        memoizedHerramientas.map((h) => ({ id: h.id, categoria: h.categoria }))
       );
     }
-  }, [isSpecificMode, selectedObjectives, herramientas]);
+  }, [isSpecificMode, memoizedSelectedObjectives, memoizedHerramientas]);
 
   // En modo específico, filtrar las opciones según los objetivos seleccionados
   const filteredDominios = isSpecificMode
     ? dominios.filter((dominio) =>
-        selectedObjectives.some((obj) => obj.code.startsWith(dominio.code))
+        memoizedSelectedObjectives.some((obj) =>
+          obj.code.startsWith(dominio.code)
+        )
       )
     : dominios;
 
   const filteredObjetivos = isSpecificMode
     ? objetivos.filter((objetivo) =>
-        selectedObjectives.some((obj) => obj.code === objetivo.id)
+        memoizedSelectedObjectives.some((obj) => obj.code === objetivo.id)
       )
     : objetivos;
 
@@ -111,9 +135,12 @@ export default function FilterSidebar({
   );
 
   // Detectar si hay filtros activos
-  const hasActiveFilters = Object.values(filters).some(
-    (filter) => filter !== ""
-  );
+  const hasActiveFilters = Object.entries(filters).some(([key, filter]) => {
+    if (key === "objetivo") {
+      return Array.isArray(filter) && filter.length > 0;
+    }
+    return filter !== "";
+  });
 
   // Mostrar estado de carga
   if (loading) {
@@ -206,7 +233,14 @@ export default function FilterSidebar({
               </h2>
               {hasActiveFilters && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {Object.values(filters).filter((f) => f !== "").length}
+                  {
+                    Object.entries(filters).filter(([key, f]) => {
+                      if (key === "objetivo") {
+                        return Array.isArray(f) && f.length > 0;
+                      }
+                      return f !== "";
+                    }).length
+                  }
                 </span>
               )}
             </div>
@@ -236,13 +270,13 @@ export default function FilterSidebar({
           </div>
 
           {/* Objetivos seleccionados (solo en modo específico) */}
-          {isSpecificMode && selectedObjectives.length > 0 && (
+          {isSpecificMode && memoizedSelectedObjectives.length > 0 && (
             <div className="bg-blue-50 p-4 rounded-lg">
               <h3 className="text-sm font-semibold text-blue-800 mb-2">
                 Objetivos Seleccionados:
               </h3>
               <div className="space-y-1">
-                {selectedObjectives.map((obj, index) => (
+                {memoizedSelectedObjectives.map((obj, index) => (
                   <div key={index} className="flex justify-between text-sm">
                     <span className="text-blue-700 font-medium">
                       {obj.code}
@@ -266,7 +300,14 @@ export default function FilterSidebar({
                 </h3>
                 {hasActiveFilters && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {Object.values(filters).filter((f) => f !== "").length}
+                    {
+                      Object.entries(filters).filter(([key, f]) => {
+                        if (key === "objetivo") {
+                          return Array.isArray(f) && f.length > 0;
+                        }
+                        return f !== "";
+                      }).length
+                    }
                   </span>
                 )}
               </div>
@@ -305,11 +346,12 @@ export default function FilterSidebar({
               onChange={(value) => onFilterChange("dominio", value)}
             />
 
-            <FilterSelect
+            <MultiSelect
               label="Objetivo"
               options={objetivoOptions}
-              value={filters.objetivo}
-              onChange={(value) => onFilterChange("objetivo", value)}
+              selectedValues={filters.objetivo}
+              onChange={(values) => onFilterChange("objetivo", values)}
+              placeholder="Seleccionar objetivos"
             />
 
             <FilterSelect

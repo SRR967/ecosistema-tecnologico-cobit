@@ -228,9 +228,9 @@ export default function CobitGraph({
       .data(data.links)
       .enter()
       .append("line")
-      .attr("stroke", "#999")
-      .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", (d: GrafoLink) => Math.sqrt(d.count * 2));
+      .attr("stroke", "#000000")
+      .attr("stroke-opacity", 0.8)
+      .attr("stroke-width", 2);
 
     // Crear nodos
     const node = g

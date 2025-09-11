@@ -35,7 +35,7 @@ export default function CrearEcosistemaPage() {
   // Estados para el ecosistema creado
   const [filters, setFilters] = useState({
     dominio: "",
-    objetivo: "",
+    objetivo: [] as string[],
     herramienta: "",
   });
   const [viewMode, setViewMode] = useState<"grafico" | "lista">("grafico");
@@ -78,7 +78,7 @@ export default function CrearEcosistemaPage() {
   // Funciones para manejar el ecosistema creado
   const handleFilterChange = (
     filterType: "dominio" | "objetivo" | "herramienta",
-    value: string
+    value: string | string[]
   ) => {
     setFilters((prev) => ({
       ...prev,
@@ -93,7 +93,7 @@ export default function CrearEcosistemaPage() {
   const handleClearFilters = () => {
     setFilters({
       dominio: "",
-      objetivo: "",
+      objetivo: [],
       herramienta: "",
     });
   };
@@ -102,7 +102,7 @@ export default function CrearEcosistemaPage() {
     setShowEcosistema(false);
     setFilters({
       dominio: "",
-      objetivo: "",
+      objetivo: [],
       herramienta: "",
     });
   };
@@ -155,12 +155,9 @@ export default function CrearEcosistemaPage() {
         </div>
       ) : (
         // Vista del ecosistema creado
-        <div className="flex min-h-screen">
+        <div className="flex h-full" style={{ height: "calc(100vh - 4rem)" }}>
           {/* Sidebar con márgenes y bordes */}
-          <div
-            className="ml-6 mt-6 mb-6 flex-shrink-0"
-            style={{ height: "calc(100vh - 8rem)" }}
-          >
+          <div className="ml-6 mt-6 mb-6 flex-shrink-0">
             <FilterSidebar
               filters={filters}
               onFilterChange={handleFilterChange}
@@ -175,19 +172,22 @@ export default function CrearEcosistemaPage() {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
-            <div className="w-full">
+          <div className="flex-1 overflow-hidden">
+            <div className="w-full h-full">
               {/* Contenido basado en el modo de vista */}
               {viewMode === "lista" ? (
-                <CobitTable
-                  filters={filters}
-                  selectedObjectives={selectedObjectivesForFilter}
-                  className="shadow-sm"
-                />
+                <div className="h-full overflow-y-auto">
+                  <CobitTable
+                    filters={filters}
+                    selectedObjectives={selectedObjectivesForFilter}
+                    className="shadow-sm"
+                  />
+                </div>
               ) : (
                 <CobitGraph
                   filters={{
                     dominio: filters.dominio,
+                    objetivo: filters.objetivo,
                     herramienta: filters.herramienta,
                   }}
                   selectedObjectives={selectedObjectivesForFilter}

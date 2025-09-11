@@ -42,7 +42,7 @@ const loadAutoTable = async () => {
 
 interface FilterState {
   dominio: string;
-  objetivo: string;
+  objetivo: string[];
   herramienta: string;
 }
 

@@ -1,3 +1,5 @@
+"use client";
+
 import Logo from "../atoms/Logo";
 import NavMenu from "../molecules/NavMenu";
 

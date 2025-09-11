@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 export interface GrafoNode {
   id: string;
@@ -35,6 +35,7 @@ export interface SelectedObjective {
 
 export interface GraphFilters {
   dominio: string;
+  objetivo: string[];
   herramienta: string;
 }
 
@@ -45,6 +46,12 @@ export function useCobitGraph(
   const [data, setData] = useState<GrafoData>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Memoizar selectedObjectives para evitar recreaciones innecesarias
+  const memoizedSelectedObjectives = useMemo(() => selectedObjectives, [
+    selectedObjectives?.length,
+    selectedObjectives?.map(obj => `${obj.code}:${obj.level}`).join(',')
+  ]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -57,7 +64,7 @@ export function useCobitGraph(
       
       // Si se pasaron selectedObjectives (array vacío), significa que venimos del modo específico
       // pero no hay objetivos seleccionados, así que no mostrar nada
-      if (selectedObjectives !== undefined && selectedObjectives.length === 0) {
+      if (memoizedSelectedObjectives !== undefined && memoizedSelectedObjectives.length === 0) {
         setData({ nodes: [], links: [] });
         setLoading(false);
         return;
@@ -66,11 +73,14 @@ export function useCobitGraph(
       // Construir parámetros de query
       const params = new URLSearchParams();
       if (filters.dominio) params.append('dominio', filters.dominio);
+      if (filters.objetivo && filters.objetivo.length > 0) {
+        filters.objetivo.forEach(obj => params.append('objetivo', obj));
+      }
       if (filters.herramienta) params.append('herramienta', filters.herramienta);
       
       // Agregar objetivos seleccionados si existen
-      if (selectedObjectives && selectedObjectives.length > 0) {
-        selectedObjectives.forEach((obj, index) => {
+      if (memoizedSelectedObjectives && memoizedSelectedObjectives.length > 0) {
+        memoizedSelectedObjectives.forEach((obj, index) => {
           params.append(`obj_${index}`, `${obj.code}:${obj.level}`);
         });
       }
@@ -90,7 +100,7 @@ export function useCobitGraph(
     } finally {
       setLoading(false);
     }
-  }, [filters.dominio, filters.herramienta, selectedObjectives]);
+  }, [filters.dominio, filters.objetivo, filters.herramienta, memoizedSelectedObjectives]);
 
   useEffect(() => {
     fetchData();
