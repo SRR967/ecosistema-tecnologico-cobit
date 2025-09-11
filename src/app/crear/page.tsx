@@ -8,7 +8,7 @@ import SelectedObjectivesBar from "../../components/molecules/SelectedObjectives
 import FilterSidebar from "../../components/molecules/FilterSidebar";
 import CobitTable from "../../components/organisms/CobitTable";
 import CobitGraph from "../../components/organisms/CobitGraph";
-import { cobitObjectives } from "../../data/cobitObjectives";
+import { useCobitBoard } from "../../hooks/useCobitBoard";
 
 interface ObjectiveWithLevel {
   code: string;
@@ -16,6 +16,9 @@ interface ObjectiveWithLevel {
 }
 
 export default function CrearEcosistemaPage() {
+  // Hook para obtener objetivos desde la base de datos
+  const { objectives, loading, error } = useCobitBoard();
+
   const [selectedObjectives, setSelectedObjectives] = useState<
     ObjectiveWithLevel[]
   >([]);
@@ -50,7 +53,7 @@ export default function CrearEcosistemaPage() {
       setSelectedObjectives((prev) => prev.filter((obj) => obj.code !== code));
     } else {
       // Si no existe, abrimos el modal para seleccionar nivel
-      const objective = cobitObjectives.find((obj) => obj.code === code);
+      const objective = objectives.find((obj) => obj.code === code);
       setModalState({
         isOpen: true,
         objectiveCode: code,
@@ -116,6 +119,66 @@ export default function CrearEcosistemaPage() {
     code: obj.code,
     level: obj.level,
   }));
+
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div className="h-screen bg-gray-50 overflow-hidden">
+        <NavBar currentPath="/crear" />
+        <div
+          className="h-full flex items-center justify-center"
+          style={{ height: "calc(100vh - 4rem)" }}
+        >
+          <div className="text-center">
+            <div
+              className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+              style={{ borderColor: "var(--cobit-red)" }}
+            ></div>
+            <h3
+              className="text-xl font-bold mb-2"
+              style={{ color: "var(--cobit-blue)" }}
+            >
+              Cargando Objetivos COBIT
+            </h3>
+            <p className="text-gray-600 b1">
+              Conectando con la base de datos...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error si ocurre
+  if (error) {
+    return (
+      <div className="h-screen bg-gray-50 overflow-hidden">
+        <NavBar currentPath="/crear" />
+        <div
+          className="h-full flex items-center justify-center"
+          style={{ height: "calc(100vh - 4rem)" }}
+        >
+          <div className="text-center">
+            <div className="text-red-500 text-4xl mb-4">⚠️</div>
+            <h3
+              className="text-xl font-bold mb-2"
+              style={{ color: "var(--cobit-red)" }}
+            >
+              Error al cargar objetivos
+            </h3>
+            <p className="text-red-600 b1 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
+              style={{ backgroundColor: "var(--cobit-blue)" }}
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden">

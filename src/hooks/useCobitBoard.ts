@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { OGG } from '../lib/database';
-import { CobitObjective, oggToCobitObjective } from '../data/cobitObjectives';
+import { CobitObjective, OGGObjective, oggToCobitObjective } from '../types/cobit';
 
 export interface UseCobitBoardReturn {
   objectives: CobitObjective[];
