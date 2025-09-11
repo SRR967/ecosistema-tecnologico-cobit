@@ -56,7 +56,7 @@ function getImageName(toolId: string): string {
     "Proxmox Mail Gateway": "Proxmox Mail Gateway.png",
     Proxmox: "Proxmox.png",
     Ralph: "Ralph.png",
-    "Rocket Chat": "Rocket Chat.png",
+    "Rocket.Chat": "RocketChat.png",
     SnipeIT: "SnipeIT.png",
     Snort: "Snort.png",
     "Tactical RMM": "Tactical RMM.png",
@@ -135,6 +135,11 @@ export default function CobitGraph({
       const target = event.target as SVGElement;
       if (target === event.currentTarget || target.tagName === "svg") {
         selectedNodeId = null;
+        resetHighlight();
+        // Resetear zoom y posición
+        g.transition()
+          .duration(800)
+          .attr("transform", "translate(0,0) scale(1)");
       }
     });
 
@@ -175,19 +180,21 @@ export default function CobitGraph({
     function getToolNodeSize(toolId: string): number {
       const connections = toolConnectionCounts.get(toolId) || 0;
 
-      // Escala de tamaño: 20px (base = objetivos) a 35px (máximo)
+      // Escala de tamaño: 20px (base = objetivos) a 60px (máximo)
       const baseSize = 20; // Mismo tamaño base que los objetivos
-      const maxSize = 35;
+      const maxSize = 60; // Aumentado significativamente de 35 a 60
       const maxConnections = Math.max(
         ...Array.from(toolConnectionCounts.values())
       );
 
       if (maxConnections === 0) return baseSize;
 
-      // Escalado proporcional desde el tamaño base
+      // Escalado proporcional desde el tamaño base con curva más pronunciada
       const sizeRange = maxSize - baseSize;
       const connectionRatio = connections / maxConnections;
-      const calculatedSize = baseSize + sizeRange * connectionRatio;
+      // Usar una curva cuadrática para hacer la diferencia más dramática
+      const curvedRatio = Math.pow(connectionRatio, 0.7); // Curva menos agresiva que cuadrática
+      const calculatedSize = baseSize + sizeRange * curvedRatio;
 
       return Math.max(baseSize, Math.min(maxSize, calculatedSize));
     }
@@ -305,12 +312,20 @@ export default function CobitGraph({
       }
     });
 
-    // Etiquetas de nodos
+    // Etiquetas de nodos - posición dinámica según el tamaño del nodo
     node
       .append("text")
       .text((d: GrafoNode) => d.id)
       .attr("font-size", "10px")
-      .attr("dx", 25)
+      .attr("dx", (d: GrafoNode) => {
+        // Para herramientas, usar el tamaño dinámico + padding
+        if (d.type === "herramienta") {
+          const nodeSize = getToolNodeSize(d.id);
+          return nodeSize + 8; // Tamaño del nodo + 8px de padding
+        }
+        // Para objetivos, usar tamaño fijo + padding
+        return 25; // 20px (tamaño objetivo) + 5px padding
+      })
       .attr("dy", 4)
       .attr("fill", "#333");
 
@@ -328,6 +343,118 @@ export default function CobitGraph({
       .style("font-size", "12px")
       .style("pointer-events", "none")
       .style("z-index", "1000");
+
+    // 🎯 Funciones de resaltado y centrado
+    function getConnectedNodes(nodeId: string): Set<string> {
+      const connected = new Set<string>();
+      connected.add(nodeId); // Incluir el nodo seleccionado
+
+      console.log(`🔍 Buscando conexiones para nodo: ${nodeId}`);
+
+      // Encontrar todos los nodos conectados directamente
+      data.links.forEach((link, index) => {
+        // D3.js puede devolver objetos de nodo o IDs string
+        const sourceId =
+          typeof link.source === "object"
+            ? (link.source as any).id
+            : (link.source as string);
+        const targetId =
+          typeof link.target === "object"
+            ? (link.target as any).id
+            : (link.target as string);
+
+        if (sourceId === nodeId) {
+          connected.add(targetId);
+        }
+        if (targetId === nodeId) {
+          connected.add(sourceId);
+        }
+      });
+
+      console.log(`🔗 Nodos conectados a ${nodeId}:`, Array.from(connected));
+      return connected;
+    }
+
+    function highlightNodeConnections(nodeId: string) {
+      const connectedNodes = getConnectedNodes(nodeId);
+
+      console.log(
+        `🎯 Resaltando conexiones para ${nodeId} (${connectedNodes.size} nodos conectados)`
+      );
+
+      node
+        .transition()
+        .duration(300)
+        .style("opacity", (d: GrafoNode) => {
+          const isConnected = connectedNodes.has(d.id);
+          return isConnected ? 1 : 0.05;
+        });
+
+      // Resaltar enlaces conectados
+      link
+        .transition()
+        .duration(300)
+        .style("opacity", (d: D3SimulationLink) => {
+          // D3.js puede devolver objetos de nodo o IDs string
+          const sourceId =
+            typeof d.source === "object"
+              ? (d.source as any).id
+              : (d.source as string);
+          const targetId =
+            typeof d.target === "object"
+              ? (d.target as any).id
+              : (d.target as string);
+          const isConnected =
+            connectedNodes.has(sourceId) && connectedNodes.has(targetId);
+          return isConnected ? 1 : 0.02;
+        })
+        .attr("stroke-width", (d: D3SimulationLink) => {
+          const sourceId =
+            typeof d.source === "object"
+              ? (d.source as any).id
+              : (d.source as string);
+          const targetId =
+            typeof d.target === "object"
+              ? (d.target as any).id
+              : (d.target as string);
+          return connectedNodes.has(sourceId) && connectedNodes.has(targetId)
+            ? 3
+            : 1;
+        });
+    }
+
+    function resetHighlight() {
+      // Restaurar opacidad normal
+      node.transition().duration(300).style("opacity", 1);
+
+      link
+        .transition()
+        .duration(300)
+        .style("opacity", 0.8)
+        .attr("stroke-width", 2);
+    }
+
+    function centerOnNode(selectedNode: GrafoNode) {
+      // Calcular posición del nodo
+      const nodeX = (selectedNode as any).x || 0;
+      const nodeY = (selectedNode as any).y || 0;
+
+      // Calcular transformación para centrar
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      const scale = 1.5; // Zoom ligeramente
+      const translateX = centerX - nodeX * scale;
+      const translateY = centerY - nodeY * scale;
+
+      // Aplicar transformación suave
+      g.transition()
+        .duration(800)
+        .attr(
+          "transform",
+          `translate(${translateX}, ${translateY}) scale(${scale})`
+        );
+    }
 
     // Eventos de tooltip para nodos
     node
@@ -355,11 +482,16 @@ export default function CobitGraph({
       .on("click", function (event: MouseEvent, d: GrafoNode) {
         event.stopPropagation();
 
-        // Click simple en nodos (funcionalidad de highlight removida)
+        // Funcionalidad de resaltado y centrado
         if (selectedNodeId === d.id) {
+          // Si ya está seleccionado, deseleccionar
           selectedNodeId = null;
+          resetHighlight();
         } else {
+          // Seleccionar nuevo nodo
           selectedNodeId = d.id;
+          highlightNodeConnections(d.id);
+          centerOnNode(d);
         }
       });
 
