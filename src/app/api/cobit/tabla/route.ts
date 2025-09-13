@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const dominio = searchParams.get('dominio');
-    const objetivo = searchParams.get('objetivo');
+    const objetivos = searchParams.getAll('objetivo'); // Cambiar a getAll para múltiples valores
     const herramienta = searchParams.get('herramienta');
     
     // Nuevos parámetros para objetivos específicos con niveles
@@ -75,11 +75,15 @@ export async function GET(request: Request) {
       paramIndex++;
     }
 
-    // Filtro por objetivo específico
-    if (objetivo && objetivo !== '') {
-      query += ` AND o.id = $${paramIndex}`;
-      params.push(objetivo);
-      paramIndex++;
+    // Filtro por objetivos específicos (múltiples)
+    if (objetivos && objetivos.length > 0) {
+      const objetivoConditions = objetivos.map(() => {
+        const condition = `o.id = $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${objetivoConditions.join(' OR ')})`;
+      params.push(...objetivos);
     }
 
     // Filtro por herramienta
@@ -118,8 +122,7 @@ export async function GET(request: Request) {
       data: result.rows,
       total: result.rows.length
     });
-  } catch (error) {
-    console.error('Error en API de tabla COBIT:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Error al cargar los datos de la tabla' },
       { status: 500 }

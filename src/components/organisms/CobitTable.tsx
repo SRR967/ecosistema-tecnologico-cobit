@@ -8,6 +8,7 @@ import {
   SelectedObjective,
 } from "../../hooks/useCobitTable";
 import { usePDFExport } from "../../hooks/usePDFExport";
+import ToolSummaryPills from "../molecules/ToolSummaryPills";
 
 interface CobitTableProps {
   filters: TableFilters;
@@ -38,9 +39,7 @@ export default function CobitTable({
         isSpecificMode:
           selectedObjectives !== undefined && selectedObjectives.length > 0,
       });
-    } catch (error) {
-      console.error("Error al exportar PDF:", error);
-    }
+    } catch {}
   };
 
   const [sortField, setSortField] =
@@ -313,6 +312,17 @@ export default function CobitTable({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Resumen de herramientas */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            Resumen de Herramientas
+          </h3>
+          <ToolSummaryPills
+            filters={filters}
+            selectedObjectives={selectedObjectives}
+          />
         </div>
 
         {/* Tabla responsive */}

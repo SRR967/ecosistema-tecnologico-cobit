@@ -10,11 +10,16 @@ const pool = new Pool({
 });
 
 // Tipos para los datos basados en tu esquema
+export interface Dominio {
+  codigo: string;       // EDM, APO, BAI, DSS, MEA
+  nombre: string;
+}
+
 export interface OGG {
   id: string;           // Formato: APO01, DSS01, etc.
   nombre: string;
-  descripcion: string;
   proposito: string;
+  dominio_codigo: string; // EDM, APO, BAI, DSS, MEA
 }
 
 export interface Practica {
@@ -42,26 +47,16 @@ export interface Actividad {
   integracion?: string;
 }
 
-// Función para obtener dominios únicos de los OGGs
-export async function getDominios(): Promise<{code: string, name: string}[]> {
+// Función para obtener dominios desde la tabla dominio
+export async function getDominios(): Promise<Dominio[]> {
   try {
     const result = await pool.query(`
-      SELECT DISTINCT 
-        SUBSTRING(id FROM 1 FOR 3) as code,
-        CASE 
-          WHEN SUBSTRING(id FROM 1 FOR 3) = 'EDM' THEN 'Evaluar, Orientar y Monitorear'
-          WHEN SUBSTRING(id FROM 1 FOR 3) = 'APO' THEN 'Alinear, Planificar y Organizar'
-          WHEN SUBSTRING(id FROM 1 FOR 3) = 'BAI' THEN 'Construir, Adquirir e Implementar'
-          WHEN SUBSTRING(id FROM 1 FOR 3) = 'DSS' THEN 'Entregar, Dar Servicio y Soporte'
-          WHEN SUBSTRING(id FROM 1 FOR 3) = 'MEA' THEN 'Monitorear, Evaluar y Valorar'
-          ELSE 'Dominio Desconocido'
-        END as name
-      FROM ogg 
-      ORDER BY code
+      SELECT codigo, nombre 
+      FROM dominio 
+      ORDER BY codigo
     `);
     return result.rows;
-  } catch (error) {
-    console.error('Error al obtener dominios:', error);
+  } catch {
     throw new Error('No se pudieron cargar los dominios');
   }
 }
@@ -71,8 +66,7 @@ export async function getOGGs(): Promise<OGG[]> {
   try {
     const result = await pool.query('SELECT * FROM ogg ORDER BY id');
     return result.rows;
-  } catch (error) {
-    console.error('Error al obtener OGGs:', error);
+  } catch {
     throw new Error('No se pudieron cargar los objetivos');
   }
 }
@@ -81,12 +75,11 @@ export async function getOGGs(): Promise<OGG[]> {
 export async function getOGGsByDominio(dominioCode: string): Promise<OGG[]> {
   try {
     const result = await pool.query(
-      'SELECT * FROM ogg WHERE id LIKE $1 ORDER BY id',
-      [`${dominioCode}%`]
+      'SELECT * FROM ogg WHERE dominio_codigo = $1 ORDER BY id',
+      [dominioCode]
     );
     return result.rows;
-  } catch (error) {
-    console.error('Error al obtener OGGs por dominio:', error);
+  } catch {
     throw new Error('No se pudieron cargar los objetivos del dominio');
   }
 }
@@ -96,8 +89,7 @@ export async function getHerramientas(): Promise<Herramienta[]> {
   try {
     const result = await pool.query('SELECT * FROM herramienta ORDER BY id');
     return result.rows;
-  } catch (error) {
-    console.error('Error al obtener herramientas:', error);
+  } catch {
     throw new Error('No se pudieron cargar las herramientas');
   }
 }
@@ -112,8 +104,7 @@ export async function getHerramientasByCategoria(): Promise<{categoria: string, 
       ORDER BY categoria
     `);
     return result.rows;
-  } catch (error) {
-    console.error('Error al obtener categorías de herramientas:', error);
+  } catch {
     throw new Error('No se pudieron cargar las categorías');
   }
 }
@@ -126,8 +117,7 @@ export async function getPracticasByOGG(oggId: string): Promise<Practica[]> {
       [oggId]
     );
     return result.rows;
-  } catch (error) {
-    console.error('Error al obtener prácticas:', error);
+  } catch {
     throw new Error('No se pudieron cargar las prácticas');
   }
 }
@@ -140,8 +130,7 @@ export async function getActividadesByPractica(practicaId: string): Promise<Acti
       [practicaId]
     );
     return result.rows;
-  } catch (error) {
-    console.error('Error al obtener actividades:', error);
+  } catch {
     throw new Error('No se pudieron cargar las actividades');
   }
 }
@@ -151,4 +140,6 @@ export async function closePool(): Promise<void> {
   await pool.end();
 }
 
+// Exportar pool como exportación nombrada y por defecto
+export { pool };
 export default pool;

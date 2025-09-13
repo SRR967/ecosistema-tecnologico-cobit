@@ -21,11 +21,28 @@ export default function CobitObjectiveCard({
     return "var(--cobit-red)"; // Rojo COBIT para todos los dominios
   };
 
+  const getLevelColor = (level: number): string => {
+    switch (level) {
+      case 1:
+        return "#fefe0e"; // Amarillo
+      case 2:
+        return "#f8bf08"; // Naranja claro
+      case 3:
+        return "#fc7e0c"; // Naranja
+      case 4:
+        return "#12ee12"; // Verde
+      case 5:
+        return "#0446ea"; // Azul
+      default:
+        return "#F3F4F6"; // Gris por defecto
+    }
+  };
+
   return (
     <div
       onClick={onClick}
       className={`
-        bg-white rounded p-2 cursor-pointer transition-all duration-200 hover:shadow-md
+        rounded p-2 cursor-pointer transition-all duration-200 hover:shadow-md
         ${
           isSelected
             ? "ring-2 ring-offset-1 shadow-lg"
@@ -34,11 +51,19 @@ export default function CobitObjectiveCard({
         ${className}
       `}
       style={{
-        border: isSelected
-          ? `3px solid ${getDomainColor()}`
-          : `2px solid ${getDomainColor()}`,
+        backgroundColor: isSelected ? "#D1D5DB" : "white",
+        border:
+          isSelected && capabilityLevel
+            ? `3px solid ${getLevelColor(capabilityLevel)}`
+            : isSelected
+            ? `3px solid ${getDomainColor()}`
+            : `2px solid ${getDomainColor()}`,
         boxShadow: isSelected
-          ? `0 0 0 1px ${getDomainColor()}, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`
+          ? `0 0 0 1px ${
+              isSelected && capabilityLevel
+                ? getLevelColor(capabilityLevel)
+                : getDomainColor()
+            }, 0 4px 6px -1px rgba(0, 0, 0, 0.1)`
           : undefined,
         minHeight: "60px",
       }}

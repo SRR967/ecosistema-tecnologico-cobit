@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 export interface TablaCobitRow {
   objetivo_id: string;
@@ -31,7 +31,7 @@ export interface SelectedObjective {
 
 export interface TableFilters {
   dominio: string;
-  objetivo: string;
+  objetivo: string[];
   herramienta: string;
 }
 
@@ -44,6 +44,12 @@ export function useCobitTable(
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
+  // Memoizar selectedObjectives para evitar recreaciones innecesarias
+  const memoizedSelectedObjectives = useMemo(() => selectedObjectives, [
+    selectedObjectives?.length,
+    selectedObjectives?.map(obj => `${obj.code}:${obj.level}`).join(',')
+  ]);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -55,7 +61,7 @@ export function useCobitTable(
       
       // Si se pasaron selectedObjectives (array vacío), significa que venimos del modo específico
       // pero no hay objetivos seleccionados, así que no mostrar nada
-      if (selectedObjectives !== undefined && selectedObjectives.length === 0) {
+      if (memoizedSelectedObjectives !== undefined && memoizedSelectedObjectives.length === 0) {
         setData([]);
         setTotal(0);
         setLoading(false);
@@ -65,12 +71,14 @@ export function useCobitTable(
       // Construir parámetros de query
       const params = new URLSearchParams();
       if (filters.dominio) params.append('dominio', filters.dominio);
-      if (filters.objetivo) params.append('objetivo', filters.objetivo);
+      if (filters.objetivo && filters.objetivo.length > 0) {
+        filters.objetivo.forEach(obj => params.append('objetivo', obj));
+      }
       if (filters.herramienta) params.append('herramienta', filters.herramienta);
       
       // Agregar objetivos seleccionados si existen
-      if (selectedObjectives && selectedObjectives.length > 0) {
-        selectedObjectives.forEach((obj, index) => {
+      if (memoizedSelectedObjectives && memoizedSelectedObjectives.length > 0) {
+        memoizedSelectedObjectives.forEach((obj, index) => {
           params.append(`obj_${index}`, `${obj.code}:${obj.level}`);
         });
       }
@@ -85,14 +93,13 @@ export function useCobitTable(
       setData(result.data || []);
       setTotal(result.total || 0);
     } catch (err) {
-      console.error('Error al cargar tabla COBIT:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
       setData([]);
       setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [filters.dominio, filters.objetivo, filters.herramienta, selectedObjectives]);
+  }, [filters.dominio, filters.objetivo, filters.herramienta, memoizedSelectedObjectives]);
 
   useEffect(() => {
     fetchData();

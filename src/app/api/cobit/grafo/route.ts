@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const dominio = searchParams.get('dominio');
+    const objetivos = searchParams.getAll('objetivo'); // Cambiar a getAll para múltiples valores
     const herramienta = searchParams.get('herramienta');
     
     // Nuevos parámetros para objetivos específicos con niveles
@@ -44,44 +45,7 @@ export async function GET(request: Request) {
       }
     });
 
-    console.log('🔍 API Grafo - Parámetros:', { dominio, herramienta, selectedObjectives });
 
-    // Diagnóstico: verificar cada tabla por separado
-    try {
-      const countOgg = await pool.query('SELECT COUNT(*) as count FROM ogg');
-      console.log('🎯 Objetivos (OGG):', countOgg.rows[0].count);
-
-      const countHerramienta = await pool.query('SELECT COUNT(*) as count FROM herramienta');
-      console.log('🔧 Herramientas:', countHerramienta.rows[0].count);
-
-      const countPractica = await pool.query('SELECT COUNT(*) as count FROM practica');
-      console.log('📋 Prácticas:', countPractica.rows[0].count);
-
-      const countActividad = await pool.query('SELECT COUNT(*) as count FROM actividad');
-      console.log('⚡ Actividades:', countActividad.rows[0].count);
-
-      // Verificar algunas relaciones básicas
-      const sampleOgg = await pool.query('SELECT id FROM ogg LIMIT 3');
-      console.log('📄 Muestra OGG IDs:', sampleOgg.rows.map(r => r.id));
-
-      const sampleHerramienta = await pool.query('SELECT id FROM herramienta LIMIT 3');
-      console.log('🔧 Muestra Herramientas:', sampleHerramienta.rows.map(r => r.id));
-
-      // Verificar si hay prácticas conectadas a objetivos
-      if (countPractica.rows[0].count > 0) {
-        const practicasSample = await pool.query('SELECT practica_id, ogg_id FROM practica LIMIT 3');
-        console.log('🔗 Muestra relaciones práctica-ogg:', practicasSample.rows);
-      }
-
-      // Verificar si hay actividades conectadas
-      if (countActividad.rows[0].count > 0) {
-        const actividadesSample = await pool.query('SELECT actividad_id, practica_id, herramienta_id FROM actividad LIMIT 3');
-        console.log('🔗 Muestra relaciones actividad:', actividadesSample.rows);
-      }
-
-    } catch (diagError) {
-      console.error('❌ Error en diagnóstico:', diagError);
-    }
 
     // Query para obtener las relaciones objetivo-herramienta
     let query = `
@@ -109,6 +73,17 @@ export async function GET(request: Request) {
       query += ` AND o.id LIKE $${paramIndex}`;
       params.push(`${dominioCode}%`);
       paramIndex++;
+    }
+
+    // Filtro por objetivos específicos (múltiples)
+    if (objetivos && objetivos.length > 0) {
+      const objetivoConditions = objetivos.map(() => {
+        const condition = `o.id = $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${objetivoConditions.join(' OR ')})`;
+      params.push(...objetivos);
     }
 
     // Filtro por herramienta
@@ -147,10 +122,6 @@ export async function GET(request: Request) {
 
     const result = await pool.query(query, params);
     
-    console.log(`📊 Filas obtenidas: ${result.rows.length}`);
-    if (result.rows.length > 0) {
-      console.log('📄 Primera fila:', result.rows[0]);
-    }
     
     // Procesar datos para crear nodos y enlaces
     const nodes: GrafoNode[] = [];
@@ -199,11 +170,8 @@ export async function GET(request: Request) {
       links
     };
 
-    console.log(`🎯 Resultado final - Nodos: ${nodes.length}, Enlaces: ${links.length}`);
-
     return NextResponse.json(grafoData);
   } catch (error) {
-    console.error('Error en API de grafo:', error);
     return NextResponse.json(
       { error: 'Error al cargar los datos del grafo' },
       { status: 500 }

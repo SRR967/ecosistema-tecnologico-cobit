@@ -8,7 +8,7 @@ import SelectedObjectivesBar from "../../components/molecules/SelectedObjectives
 import FilterSidebar from "../../components/molecules/FilterSidebar";
 import CobitTable from "../../components/organisms/CobitTable";
 import CobitGraph from "../../components/organisms/CobitGraph";
-import { cobitObjectives } from "../../data/cobitObjectives";
+import { useCobitBoard } from "../../hooks/useCobitBoard";
 
 interface ObjectiveWithLevel {
   code: string;
@@ -16,6 +16,9 @@ interface ObjectiveWithLevel {
 }
 
 export default function CrearEcosistemaPage() {
+  // Hook para obtener objetivos desde la base de datos
+  const { objectives, loading, error } = useCobitBoard();
+
   const [selectedObjectives, setSelectedObjectives] = useState<
     ObjectiveWithLevel[]
   >([]);
@@ -35,7 +38,7 @@ export default function CrearEcosistemaPage() {
   // Estados para el ecosistema creado
   const [filters, setFilters] = useState({
     dominio: "",
-    objetivo: "",
+    objetivo: [] as string[],
     herramienta: "",
   });
   const [viewMode, setViewMode] = useState<"grafico" | "lista">("grafico");
@@ -50,7 +53,7 @@ export default function CrearEcosistemaPage() {
       setSelectedObjectives((prev) => prev.filter((obj) => obj.code !== code));
     } else {
       // Si no existe, abrimos el modal para seleccionar nivel
-      const objective = cobitObjectives.find((obj) => obj.code === code);
+      const objective = objectives.find((obj) => obj.code === code);
       setModalState({
         isOpen: true,
         objectiveCode: code,
@@ -78,7 +81,7 @@ export default function CrearEcosistemaPage() {
   // Funciones para manejar el ecosistema creado
   const handleFilterChange = (
     filterType: "dominio" | "objetivo" | "herramienta",
-    value: string
+    value: string | string[]
   ) => {
     setFilters((prev) => ({
       ...prev,
@@ -93,7 +96,7 @@ export default function CrearEcosistemaPage() {
   const handleClearFilters = () => {
     setFilters({
       dominio: "",
-      objetivo: "",
+      objetivo: [],
       herramienta: "",
     });
   };
@@ -102,7 +105,7 @@ export default function CrearEcosistemaPage() {
     setShowEcosistema(false);
     setFilters({
       dominio: "",
-      objetivo: "",
+      objetivo: [],
       herramienta: "",
     });
   };
@@ -116,6 +119,66 @@ export default function CrearEcosistemaPage() {
     code: obj.code,
     level: obj.level,
   }));
+
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div className="h-screen bg-gray-50 overflow-hidden">
+        <NavBar currentPath="/crear" />
+        <div
+          className="h-full flex items-center justify-center"
+          style={{ height: "calc(100vh - 4rem)" }}
+        >
+          <div className="text-center">
+            <div
+              className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+              style={{ borderColor: "var(--cobit-red)" }}
+            ></div>
+            <h3
+              className="text-xl font-bold mb-2"
+              style={{ color: "var(--cobit-blue)" }}
+            >
+              Cargando Objetivos COBIT
+            </h3>
+            <p className="text-gray-600 b1">
+              Conectando con la base de datos...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error si ocurre
+  if (error) {
+    return (
+      <div className="h-screen bg-gray-50 overflow-hidden">
+        <NavBar currentPath="/crear" />
+        <div
+          className="h-full flex items-center justify-center"
+          style={{ height: "calc(100vh - 4rem)" }}
+        >
+          <div className="text-center">
+            <div className="text-red-500 text-4xl mb-4">⚠️</div>
+            <h3
+              className="text-xl font-bold mb-2"
+              style={{ color: "var(--cobit-red)" }}
+            >
+              Error al cargar objetivos
+            </h3>
+            <p className="text-red-600 b1 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
+              style={{ backgroundColor: "var(--cobit-blue)" }}
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-gray-50 overflow-hidden">
@@ -155,12 +218,9 @@ export default function CrearEcosistemaPage() {
         </div>
       ) : (
         // Vista del ecosistema creado
-        <div className="flex min-h-screen">
+        <div className="flex h-full" style={{ height: "calc(100vh - 4rem)" }}>
           {/* Sidebar con márgenes y bordes */}
-          <div
-            className="ml-6 mt-6 mb-6 flex-shrink-0"
-            style={{ height: "calc(100vh - 8rem)" }}
-          >
+          <div className="ml-6 mt-6 mb-6 flex-shrink-0">
             <FilterSidebar
               filters={filters}
               onFilterChange={handleFilterChange}
@@ -175,19 +235,22 @@ export default function CrearEcosistemaPage() {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
-            <div className="w-full">
+          <div className="flex-1 overflow-hidden">
+            <div className="w-full h-full">
               {/* Contenido basado en el modo de vista */}
               {viewMode === "lista" ? (
-                <CobitTable
-                  filters={filters}
-                  selectedObjectives={selectedObjectivesForFilter}
-                  className="shadow-sm"
-                />
+                <div className="h-full overflow-y-auto">
+                  <CobitTable
+                    filters={filters}
+                    selectedObjectives={selectedObjectivesForFilter}
+                    className="shadow-sm"
+                  />
+                </div>
               ) : (
                 <CobitGraph
                   filters={{
                     dominio: filters.dominio,
+                    objetivo: filters.objetivo,
                     herramienta: filters.herramienta,
                   }}
                   selectedObjectives={selectedObjectivesForFilter}

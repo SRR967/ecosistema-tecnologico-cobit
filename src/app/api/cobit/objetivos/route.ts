@@ -16,8 +16,7 @@ export async function GET(request: Request) {
     }
     
     return NextResponse.json(objetivos);
-  } catch (error) {
-    console.error('Error en API de objetivos:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Error al cargar los objetivos' },
       { status: 500 }

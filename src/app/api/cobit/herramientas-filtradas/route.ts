@@ -72,8 +72,7 @@ export async function GET(request: NextRequest) {
       }))
     });
 
-  } catch (error) {
-    console.error("Error en API de herramientas filtradas:", error);
+  } catch {
     return NextResponse.json(
       { 
         success: false, 

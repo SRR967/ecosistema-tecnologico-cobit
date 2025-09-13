@@ -33,11 +33,13 @@ export default function FilterSelect({
         }}
       >
         <option value="">Seleccionar {label.toLowerCase()}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
+        {options
+          .filter((option) => option && option.trim() !== "")
+          .map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
       </select>
     </div>
   );
