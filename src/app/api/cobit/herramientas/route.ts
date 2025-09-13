@@ -5,8 +5,7 @@ export async function GET() {
   try {
     const herramientas = await getHerramientas();
     return NextResponse.json(herramientas);
-  } catch (error) {
-    console.error('Error en API de herramientas:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Error al cargar las herramientas' },
       { status: 500 }

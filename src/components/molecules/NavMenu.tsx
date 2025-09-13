@@ -1,3 +1,5 @@
+"use client";
+
 import NavButton from "../atoms/NavButton";
 
 interface NavMenuItem {

@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import {
   useCobitGraph,
   GraphFilters,
   SelectedObjective,
   GrafoNode,
-  GrafoLink,
 } from "../../hooks/useCobitGraph";
 import { D3SimulationNode, D3SimulationLink } from "../../types/database";
+import NodeDetailModal from "../molecules/NodeDetailModal";
 
 interface CobitGraphProps {
   filters: GraphFilters;
@@ -56,7 +56,7 @@ function getImageName(toolId: string): string {
     "Proxmox Mail Gateway": "Proxmox Mail Gateway.png",
     Proxmox: "Proxmox.png",
     Ralph: "Ralph.png",
-    "Rocket Chat": "Rocket Chat.png",
+    "Rocket.Chat": "RocketChat.png",
     SnipeIT: "SnipeIT.png",
     Snort: "Snort.png",
     "Tactical RMM": "Tactical RMM.png",
@@ -95,7 +95,35 @@ export default function CobitGraph({
 }: CobitGraphProps) {
   const { data, loading, error } = useCobitGraph(filters, selectedObjectives);
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Estado para el modal de detalles
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    nodeType: "objetivo" | "herramienta";
+    nodeId: string;
+  }>({
+    isOpen: false,
+    nodeType: "objetivo",
+    nodeId: "",
+  });
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+
+  // Funciones para manejar el modal
+  const openModal = (nodeType: "objetivo" | "herramienta", nodeId: string) => {
+    setModalState({
+      isOpen: true,
+      nodeType,
+      nodeId,
+    });
+  };
+
+  const closeModal = () => {
+    setModalState({
+      isOpen: false,
+      nodeType: "objetivo",
+      nodeId: "",
+    });
+  };
 
   useEffect(() => {
     if (!data.nodes.length || !svgRef.current) return;
@@ -135,6 +163,11 @@ export default function CobitGraph({
       const target = event.target as SVGElement;
       if (target === event.currentTarget || target.tagName === "svg") {
         selectedNodeId = null;
+        resetHighlight();
+        // Resetear zoom y posición
+        g.transition()
+          .duration(800)
+          .attr("transform", "translate(0,0) scale(1)");
       }
     });
 
@@ -175,19 +208,21 @@ export default function CobitGraph({
     function getToolNodeSize(toolId: string): number {
       const connections = toolConnectionCounts.get(toolId) || 0;
 
-      // Escala de tamaño: 20px (base = objetivos) a 35px (máximo)
+      // Escala de tamaño: 20px (base = objetivos) a 60px (máximo)
       const baseSize = 20; // Mismo tamaño base que los objetivos
-      const maxSize = 35;
+      const maxSize = 60; // Aumentado significativamente de 35 a 60
       const maxConnections = Math.max(
         ...Array.from(toolConnectionCounts.values())
       );
 
       if (maxConnections === 0) return baseSize;
 
-      // Escalado proporcional desde el tamaño base
+      // Escalado proporcional desde el tamaño base con curva más pronunciada
       const sizeRange = maxSize - baseSize;
       const connectionRatio = connections / maxConnections;
-      const calculatedSize = baseSize + sizeRange * connectionRatio;
+      // Usar una curva cuadrática para hacer la diferencia más dramática
+      const curvedRatio = Math.pow(connectionRatio, 0.7); // Curva menos agresiva que cuadrática
+      const calculatedSize = baseSize + sizeRange * curvedRatio;
 
       return Math.max(baseSize, Math.min(maxSize, calculatedSize));
     }
@@ -228,9 +263,9 @@ export default function CobitGraph({
       .data(data.links)
       .enter()
       .append("line")
-      .attr("stroke", "#999")
-      .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", (d: GrafoLink) => Math.sqrt(d.count * 2));
+      .attr("stroke", "#000000")
+      .attr("stroke-opacity", 0.8)
+      .attr("stroke-width", 2);
 
     // Crear nodos
     const node = g
@@ -305,12 +340,20 @@ export default function CobitGraph({
       }
     });
 
-    // Etiquetas de nodos
+    // Etiquetas de nodos - posición dinámica según el tamaño del nodo
     node
       .append("text")
       .text((d: GrafoNode) => d.id)
       .attr("font-size", "10px")
-      .attr("dx", 25)
+      .attr("dx", (d: GrafoNode) => {
+        // Para herramientas, usar el tamaño dinámico + padding
+        if (d.type === "herramienta") {
+          const nodeSize = getToolNodeSize(d.id);
+          return nodeSize + 8; // Tamaño del nodo + 8px de padding
+        }
+        // Para objetivos, usar tamaño fijo + padding
+        return 25; // 20px (tamaño objetivo) + 5px padding
+      })
       .attr("dy", 4)
       .attr("fill", "#333");
 
@@ -326,8 +369,121 @@ export default function CobitGraph({
       .style("padding", "8px")
       .style("border-radius", "4px")
       .style("font-size", "12px")
-      .style("pointer-events", "none")
-      .style("z-index", "1000");
+      .style("pointer-events", "auto") // Cambiar a auto para permitir interacción
+      .style("z-index", "1000")
+      .on("mouseenter", function () {
+        // Mantener el tooltip visible cuando el mouse está sobre él
+        tooltip.transition().duration(200).style("opacity", 0.9);
+      })
+      .on("mouseleave", function () {
+        // Ocultar el tooltip cuando el mouse sale de él
+        tooltip.transition().duration(500).style("opacity", 0);
+      });
+
+    // 🎯 Funciones de resaltado y centrado
+    function getConnectedNodes(nodeId: string): Set<string> {
+      const connected = new Set<string>();
+      connected.add(nodeId); // Incluir el nodo seleccionado
+
+      // Encontrar todos los nodos conectados directamente
+      data.links.forEach((link) => {
+        // D3.js puede devolver objetos de nodo o IDs string
+        const sourceId =
+          typeof link.source === "object"
+            ? (link.source as { id: string }).id
+            : (link.source as string);
+        const targetId =
+          typeof link.target === "object"
+            ? (link.target as { id: string }).id
+            : (link.target as string);
+
+        if (sourceId === nodeId) {
+          connected.add(targetId);
+        }
+        if (targetId === nodeId) {
+          connected.add(sourceId);
+        }
+      });
+
+      return connected;
+    }
+
+    function highlightNodeConnections(nodeId: string) {
+      const connectedNodes = getConnectedNodes(nodeId);
+
+      node
+        .transition()
+        .duration(300)
+        .style("opacity", (d: GrafoNode) => {
+          const isConnected = connectedNodes.has(d.id);
+          return isConnected ? 1 : 0.05;
+        });
+
+      // Resaltar enlaces conectados
+      link
+        .transition()
+        .duration(300)
+        .style("opacity", (d: D3SimulationLink) => {
+          // D3.js puede devolver objetos de nodo o IDs string
+          const sourceId =
+            typeof d.source === "object"
+              ? (d.source as { id: string }).id
+              : (d.source as string);
+          const targetId =
+            typeof d.target === "object"
+              ? (d.target as { id: string }).id
+              : (d.target as string);
+          const isConnected =
+            connectedNodes.has(sourceId) && connectedNodes.has(targetId);
+          return isConnected ? 1 : 0.02;
+        })
+        .attr("stroke-width", (d: D3SimulationLink) => {
+          const sourceId =
+            typeof d.source === "object"
+              ? (d.source as { id: string }).id
+              : (d.source as string);
+          const targetId =
+            typeof d.target === "object"
+              ? (d.target as { id: string }).id
+              : (d.target as string);
+          return connectedNodes.has(sourceId) && connectedNodes.has(targetId)
+            ? 3
+            : 1;
+        });
+    }
+
+    function resetHighlight() {
+      // Restaurar opacidad normal
+      node.transition().duration(300).style("opacity", 1);
+
+      link
+        .transition()
+        .duration(300)
+        .style("opacity", 0.8)
+        .attr("stroke-width", 2);
+    }
+
+    function centerOnNode(selectedNode: GrafoNode) {
+      // Calcular posición del nodo
+      const nodeX = (selectedNode as { x?: number }).x || 0;
+      const nodeY = (selectedNode as { y?: number }).y || 0;
+
+      // Calcular transformación para centrar
+      const centerX = width / 2;
+      const centerY = height / 2;
+
+      const scale = 1.5; // Zoom ligeramente
+      const translateX = centerX - nodeX * scale;
+      const translateY = centerY - nodeY * scale;
+
+      // Aplicar transformación suave
+      g.transition()
+        .duration(800)
+        .attr(
+          "transform",
+          `translate(${translateX}, ${translateY}) scale(${scale})`
+        );
+    }
 
     // Eventos de tooltip para nodos
     node
@@ -336,30 +492,61 @@ export default function CobitGraph({
         let content = "";
 
         if (d.type === "objetivo") {
-          content = `<strong>${d.id}</strong><br/>${d.name}<br/>Dominio: ${d.domain}`;
+          content = `<strong>${d.id}</strong><br/>${d.name}<br/>Dominio: ${d.domain}<br/><br/><a href="#" class="know-more-link" data-node-type="objetivo" data-node-id="${d.id}" style="color: #3B82F6; text-decoration: underline; font-size: 12px;">Conoce más</a>`;
         } else {
           // Tooltip simplificado para herramientas
           content = `<strong>${d.id}</strong><br/>`;
           if (d.category) content += `Categoría: ${d.category}<br/>`;
-          if (d.toolType) content += `Tipo: ${d.toolType}`;
+          if (d.toolType) content += `Tipo: ${d.toolType}<br/>`;
+          content += `<br/><a href="#" class="know-more-link" data-node-type="herramienta" data-node-id="${d.id}" style="color: #3B82F6; text-decoration: underline; font-size: 12px;">Conoce más</a>`;
         }
 
         tooltip
           .html(content)
           .style("left", event.pageX + 10 + "px")
           .style("top", event.pageY - 28 + "px");
+
+        // Agregar event listener para el hipervínculo "Conoce más"
+        setTimeout(() => {
+          const knowMoreLink = document.querySelector(".know-more-link");
+          if (knowMoreLink) {
+            knowMoreLink.addEventListener("click", function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              const target = e.target as HTMLElement;
+              const nodeType = target.getAttribute("data-node-type") as
+                | "objetivo"
+                | "herramienta";
+              const nodeId = target.getAttribute("data-node-id");
+              if (nodeType && nodeId) {
+                openModal(nodeType, nodeId);
+              }
+            });
+          }
+        }, 100);
       })
       .on("mouseout", function () {
-        tooltip.transition().duration(500).style("opacity", 0);
+        // Solo ocultar el tooltip si el mouse no está sobre el tooltip mismo
+        setTimeout(() => {
+          const tooltipElement = document.querySelector(".tooltip");
+          if (tooltipElement && !tooltipElement.matches(":hover")) {
+            tooltip.transition().duration(500).style("opacity", 0);
+          }
+        }, 100);
       })
       .on("click", function (event: MouseEvent, d: GrafoNode) {
         event.stopPropagation();
 
-        // Click simple en nodos (funcionalidad de highlight removida)
+        // Funcionalidad de resaltado y centrado
         if (selectedNodeId === d.id) {
+          // Si ya está seleccionado, deseleccionar
           selectedNodeId = null;
+          resetHighlight();
         } else {
+          // Seleccionar nuevo nodo
           selectedNodeId = d.id;
+          highlightNodeConnections(d.id);
+          centerOnNode(d);
         }
       });
 
@@ -633,6 +820,14 @@ export default function CobitGraph({
           </div>
         </div>
       </div>
+
+      {/* Modal de detalles */}
+      <NodeDetailModal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        nodeType={modalState.nodeType}
+        nodeId={modalState.nodeId}
+      />
     </div>
   );
 }

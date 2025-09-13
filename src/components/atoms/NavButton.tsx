@@ -1,4 +1,4 @@
-import Link from "next/link";
+"use client";
 
 interface NavButtonProps {
   children: React.ReactNode;
@@ -18,7 +18,7 @@ export default function NavButton({
   className = "",
 }: NavButtonProps) {
   const baseStyles =
-    "px-4 py-2 rounded-md transition-colors duration-200 text-b1";
+    "px-4 py-2 rounded-md transition-colors duration-200 text-b1 cursor-pointer";
 
   const variantStyles = {
     default: isActive ? "font-bold" : "hover:bg-gray-50 font-medium",
@@ -40,11 +40,36 @@ export default function NavButton({
 
   const combinedClassName = `${baseStyles} ${variantStyles[variant]} ${className}`;
 
+  // Handler para navegación con router como backup
+  const handleNavigation = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (href && typeof window !== "undefined") {
+      // Detectar si estamos en la página ecosistema
+      // const currentPath = window.location.pathname; // Comentado temporalmente
+
+      // Siempre usar navegación directa para debugging
+
+      // Usar setTimeout para asegurar que no hay interferencias
+      setTimeout(() => {
+        if (typeof window !== "undefined") {
+          window.location.href = href;
+        }
+      }, 100);
+    }
+  };
+
   if (href) {
     return (
-      <Link href={href} className={combinedClassName} style={dynamicStyles}>
+      <button
+        className={combinedClassName}
+        style={dynamicStyles}
+        onClick={handleNavigation}
+        type="button"
+      >
         {children}
-      </Link>
+      </button>
     );
   }
 

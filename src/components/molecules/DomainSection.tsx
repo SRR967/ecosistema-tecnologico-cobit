@@ -62,22 +62,24 @@ export default function DomainSection({
         {title}
       </div>
       <div className={`${getGridClass()} flex-1`}>
-        {objectives.map((objective) => {
-          const selectedObj = selectedObjectives?.find(
-            (obj) => obj.code === objective.code
-          );
-          return (
-            <CobitObjectiveCard
-              key={objective.code}
-              code={objective.code}
-              title={objective.title}
-              domain={domain}
-              isSelected={!!selectedObj}
-              capabilityLevel={selectedObj?.level}
-              onClick={() => onObjectiveClick?.(objective.code)}
-            />
-          );
-        })}
+        {objectives
+          .filter((objective) => objective && objective.code)
+          .map((objective) => {
+            const selectedObj = selectedObjectives?.find(
+              (obj) => obj.code === objective.code
+            );
+            return (
+              <CobitObjectiveCard
+                key={objective.code}
+                code={objective.code}
+                title={objective.title}
+                domain={domain}
+                isSelected={!!selectedObj}
+                capabilityLevel={selectedObj?.level}
+                onClick={() => onObjectiveClick?.(objective.code)}
+              />
+            );
+          })}
       </div>
     </div>
   );

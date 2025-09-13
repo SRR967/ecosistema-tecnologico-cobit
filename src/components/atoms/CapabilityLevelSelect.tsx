@@ -11,26 +11,26 @@ interface CapabilityLevelSelectProps {
 }
 
 const capabilityLevels: CapabilityLevel[] = [
-  { level: 1, name: "Performed", description: "El proceso logra su propósito" },
+  { level: 1, name: "Ejecutado", description: "El proceso logra su propósito" },
   {
     level: 2,
-    name: "Managed",
+    name: "Gestionado",
     description: "El proceso se gestiona (planifica, monitorea y ajusta)",
   },
   {
     level: 3,
-    name: "Established",
+    name: "Establecido",
     description: "El proceso se implementa usando un proceso definido",
   },
   {
     level: 4,
-    name: "Predictable",
+    name: "Predecible",
     description:
-      "El proceso opera de manera predictable dentro de límites definidos",
+      "El proceso opera de manera predecible dentro de límites definidos",
   },
   {
     level: 5,
-    name: "Optimizing",
+    name: "Optimizado",
     description:
       "El proceso se mejora continuamente para cumplir objetivos actuales y futuros",
   },

@@ -7,6 +7,7 @@ import {
   getObjectivesByDomain,
   getDomainTitle,
 } from "../../hooks/useCobitBoard";
+import { useCobitData } from "../../hooks/useCobitData";
 
 interface ObjectiveWithLevel {
   code: string;
@@ -24,8 +25,9 @@ export default function CobitBoard({
   onObjectiveToggle,
   className = "",
 }: CobitBoardProps) {
-  // Cargar objetivos desde la base de datos
+  // Cargar objetivos y dominios desde la base de datos
   const { objectives, loading, error } = useCobitBoard();
+  const { dominios } = useCobitData();
 
   const handleObjectiveClick = (code: string) => {
     onObjectiveToggle?.(code);
@@ -97,7 +99,7 @@ export default function CobitBoard({
         <div className="col-span-12">
           <DomainSection
             domain="EDM"
-            title={getDomainTitle("EDM")}
+            title={getDomainTitle("EDM", dominios)}
             objectives={getObjectivesByDomain(objectives, "EDM")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
@@ -110,7 +112,7 @@ export default function CobitBoard({
           {/* APO - Segunda fila */}
           <DomainSection
             domain="APO"
-            title={getDomainTitle("APO")}
+            title={getDomainTitle("APO", dominios)}
             objectives={getObjectivesByDomain(objectives, "APO")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
@@ -120,7 +122,7 @@ export default function CobitBoard({
           {/* BAI - Tercera fila */}
           <DomainSection
             domain="BAI"
-            title={getDomainTitle("BAI")}
+            title={getDomainTitle("BAI", dominios)}
             objectives={getObjectivesByDomain(objectives, "BAI")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
@@ -130,7 +132,7 @@ export default function CobitBoard({
           {/* DSS - Cuarta fila */}
           <DomainSection
             domain="DSS"
-            title={getDomainTitle("DSS")}
+            title={getDomainTitle("DSS", dominios)}
             objectives={getObjectivesByDomain(objectives, "DSS")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}
@@ -142,7 +144,7 @@ export default function CobitBoard({
         <div className="col-span-3 h-full">
           <DomainSection
             domain="MEA"
-            title={getDomainTitle("MEA")}
+            title={getDomainTitle("MEA", dominios)}
             objectives={getObjectivesByDomain(objectives, "MEA")}
             selectedObjectives={selectedObjectives}
             onObjectiveClick={handleObjectiveClick}

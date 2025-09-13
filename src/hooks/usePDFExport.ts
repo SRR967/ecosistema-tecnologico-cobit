@@ -42,7 +42,7 @@ const loadAutoTable = async () => {
 
 interface FilterState {
   dominio: string;
-  objetivo: string;
+  objetivo: string[];
   herramienta: string;
 }
 
@@ -73,6 +73,26 @@ export function usePDFExport() {
       
       // Configurar fuentes
       doc.setFont("helvetica");
+      
+      // Función helper para normalizar caracteres especiales corruptos
+      const normalizeSpecialChars = (text: string): string => {
+        if (!text) return '';
+        return text
+          .replace(/┌til/g, 'Útil')
+          .replace(/┌/g, 'Ú')
+          .replace(/â€™/g, "'")
+          .replace(/â€œ/g, '"')
+          .replace(/â€/g, '"')
+          .replace(/â€¦/g, '...')
+          .replace(/â€"/g, '-')
+          .replace(/Ã¡/g, 'á')
+          .replace(/Ã©/g, 'é')
+          .replace(/Ã­/g, 'í')
+          .replace(/Ã³/g, 'ó')
+          .replace(/Ãº/g, 'ú')
+          .replace(/Ã±/g, 'ñ')
+          .replace(/Ã¼/g, 'ü');
+      };
       
       // **ENCABEZADO**
       doc.setFontSize(16);
@@ -126,7 +146,7 @@ export function usePDFExport() {
       yPosition += 8;
       
       // Preparar datos de filtros para tabla
-      const filtrosData = [];
+      const filtrosData: (string | number)[][] = [];
       
       // Modo de operación
       if (isSpecificMode && selectedObjectives.length > 0) {
@@ -142,8 +162,8 @@ export function usePDFExport() {
       if (filters.dominio) {
         filtrosData.push(["Dominio", filters.dominio]);
       }
-      if (filters.objetivo) {
-        filtrosData.push(["Objetivo", filters.objetivo]);
+      if (filters.objetivo && filters.objetivo.length > 0) {
+        filtrosData.push(["Objetivo", filters.objetivo.join(", ")]);
       }
       if (filters.herramienta) {
         filtrosData.push(["Herramienta", filters.herramienta]);
@@ -215,11 +235,14 @@ export function usePDFExport() {
       // Calcular cobertura por herramienta
       const herramientaMap = new Map<string, { count: number; categoria: string }>();
       tableData.forEach((row) => {
-        const key = row.herramienta_id || "";
-        if (!herramientaMap.has(key) && key) {
-          herramientaMap.set(key, { count: 0, categoria: row.herramienta_categoria || "" });
-        }
-        if (key && herramientaMap.has(key)) {
+        const key = normalizeSpecialChars(row.herramienta_id || "");
+        if (key && key.trim() !== "") {
+          if (!herramientaMap.has(key)) {
+            herramientaMap.set(key, { 
+              count: 0, 
+              categoria: normalizeSpecialChars(row.herramienta_categoria || "Sin categoría")
+            });
+          }
           herramientaMap.get(key)!.count++;
         }
       });
@@ -231,23 +254,21 @@ export function usePDFExport() {
         yPosition += 15;
       } else {
         // Preparar datos para tabla de cobertura
+        const totalActividades = tableData.length;
         const coberturaData = Array.from(herramientaMap.entries())
           .sort(([, a], [, b]) => b.count - a.count)
           .map(([herramienta, data], index) => [
             (index + 1).toString(),
-            herramienta,
-            data.categoria,
+            normalizeSpecialChars(herramienta),
             data.count.toString(),
-            `${((data.count / tableData.length) * 100).toFixed(1)}%`
+            `${((data.count / totalActividades) * 100).toFixed(1)}%`
           ]);
         
         // Agregar fila de totales
-        const totalActividades = tableData.length;
         const totalHerramientas = herramientaMap.size;
         coberturaData.push([
           "TOTAL",
           `${totalHerramientas} herramienta(s)`,
-          "-",
           totalActividades.toString(),
           "100%"
         ]);
@@ -255,7 +276,7 @@ export function usePDFExport() {
         // Generar tabla de cobertura
         if (typeof doc.autoTable === 'function') {
           doc.autoTable({
-            head: [["#", "Herramienta", "Categoría", "Actividades", "% Cobertura"]],
+            head: [["#", "Herramienta", "Act.", "%"]],
             body: coberturaData,
             startY: yPosition,
           styles: {
@@ -273,11 +294,10 @@ export function usePDFExport() {
               fillColor: [248, 249, 250],
             },
             columnStyles: {
-              0: { cellWidth: 12, halign: 'center' },
-              1: { cellWidth: 60 },
-              2: { cellWidth: 40 },
-              3: { cellWidth: 25, halign: 'center' },
-              4: { cellWidth: 25, halign: 'center' }
+              0: { cellWidth: 15, halign: 'center' },
+              1: { cellWidth: 80 },
+              2: { cellWidth: 20, halign: 'center' },
+              3: { cellWidth: 20, halign: 'center' }
             },
             margin: { left: 10, right: 10, bottom: 50 },
             tableWidth: 'auto',
@@ -299,8 +319,7 @@ export function usePDFExport() {
           doc.rect(20, yPosition - 4, pageWidth - 40, 8, "F");
           doc.text("#", 25, yPosition);
           doc.text("Herramienta", 40, yPosition);
-          doc.text("Categoría", 100, yPosition);
-          doc.text("Act.", 140, yPosition);
+          doc.text("Act.", 120, yPosition);
           doc.text("%", 160, yPosition);
           yPosition += 10;
           
@@ -317,10 +336,9 @@ export function usePDFExport() {
               doc.rect(20, yPosition - 4, pageWidth - 40, 6, "F");
             }
             doc.text(row[0], 25, yPosition);
-            doc.text(row[1].substring(0, 20), 40, yPosition);
-            doc.text(row[2].substring(0, 15), 100, yPosition);
-            doc.text(row[3], 140, yPosition);
-            doc.text(row[4], 160, yPosition);
+            doc.text(row[1].substring(0, 30), 40, yPosition);
+            doc.text(row[2], 120, yPosition);
+            doc.text(row[3], 160, yPosition);
             yPosition += 6;
             if (index === coberturaData.length - 1) {
               doc.setFont("helvetica", "normal");
@@ -350,14 +368,14 @@ export function usePDFExport() {
         ];
         
         const tableRows = tableData.map((row) => [
-          row.objetivo_id || "",
-          row.practica_id || "",
-          row.actividad_id || "",
+          normalizeSpecialChars(row.objetivo_id || ""),
+          normalizeSpecialChars(row.practica_id || ""),
+          normalizeSpecialChars(row.actividad_id || ""),
           row.nivel_capacidad?.toString() || "",
-          row.herramienta_id || "",
-          row.justificacion || "",
-          row.observaciones || "",
-          row.integracion || ""
+          normalizeSpecialChars(row.herramienta_id || ""),
+          normalizeSpecialChars(row.justificacion || ""),
+          normalizeSpecialChars(row.observaciones || ""),
+          normalizeSpecialChars(row.integracion || "")
         ]);
         
         // Verificar si autoTable está disponible después de la carga dinámica
@@ -368,11 +386,13 @@ export function usePDFExport() {
             body: tableRows,
             startY: yPosition,
             styles: {
-              fontSize: 6,
-              cellPadding: 1.5,
+              fontSize: 7,
+              cellPadding: 3,
               overflow: 'linebreak',
               valign: 'top',
               cellWidth: 'wrap',
+              lineWidth: 0.1,
+              lineColor: [200, 200, 200],
             },
             headStyles: {
               fillColor: [41, 128, 185], // Azul COBIT
@@ -385,17 +405,17 @@ export function usePDFExport() {
               fillColor: [249, 249, 249],
             },
             columnStyles: {
-              0: { cellWidth: 18 }, // Objetivo
-              1: { cellWidth: 18 }, // Práctica
-              2: { cellWidth: 18 }, // Actividad
-              3: { cellWidth: 12, halign: 'center' }, // Nivel
-              4: { cellWidth: 22 }, // Herramienta
-              5: { cellWidth: 28 }, // Justificación
-              6: { cellWidth: 26 }, // Observación
-              7: { cellWidth: 26 }  // Integración
+              0: { cellWidth: 20 }, // Objetivo
+              1: { cellWidth: 20 }, // Práctica
+              2: { cellWidth: 20 }, // Actividad
+              3: { cellWidth: 15, halign: 'center' }, // Nivel
+              4: { cellWidth: 25 }, // Herramienta
+              5: { cellWidth: 35 }, // Justificación
+              6: { cellWidth: 35 }, // Observación
+              7: { cellWidth: 35 }  // Integración
             },
-            margin: { left: 4, right: 4, top: 10, bottom: 50 },
-            tableWidth: 168, // Ancho ajustado para headers completos
+            margin: { left: 10, right: 10, top: 10, bottom: 50 },
+            tableWidth: 195, // Ancho ajustado para mejor distribución
             pageBreak: "auto",
             showHead: "everyPage",
             theme: 'striped',
@@ -410,9 +430,9 @@ export function usePDFExport() {
           let tableY = yPosition;
           
           // Definir anchos de columnas que caben en página A4 (210mm ≈ 595px)
-          const totalWidth = 168; // Ancho que cabe cómodamente en A4
-          const columnWidths = [18, 18, 18, 12, 22, 28, 26, 26]; // Total: 168
-          const startX = 18;
+          const totalWidth = 195; // Ancho ajustado para mejor distribución
+          const columnWidths = [20, 20, 20, 15, 25, 35, 35, 35]; // Total: 195
+          const startX = 10;
           
           // Headers
           doc.setFontSize(6);
@@ -422,9 +442,11 @@ export function usePDFExport() {
           doc.setTextColor(255, 255, 255);
           let xPos = startX + 2;
           tableHeaders.forEach((header, index) => {
-            // Calcular caracteres que caben según el ancho de columna
-            const maxChars = Math.floor(columnWidths[index] / 1.8);
-            const headerText = header.length > maxChars ? header.substring(0, maxChars - 1) + "." : header;
+            // Usar el ancho completo de la columna para headers
+            const maxWidth = columnWidths[index] - 2;
+            const headerText = doc.getTextWidth(header) > maxWidth ? 
+              header.substring(0, Math.floor(header.length * 0.8)) + "..." : 
+              header;
             doc.text(headerText, xPos, tableY);
             xPos += columnWidths[index];
           });
@@ -447,7 +469,7 @@ export function usePDFExport() {
               const cellText = cell.toString();
               const maxWidth = columnWidths[colIndex] - 2;
               
-              // Dividir texto en líneas
+              // Dividir texto en líneas con mejor manejo
               const words = cellText.split(' ');
               const lines = [];
               let currentLine = '';
@@ -460,7 +482,24 @@ export function usePDFExport() {
                   currentLine = testLine;
                 } else {
                   if (currentLine) lines.push(currentLine);
-                  currentLine = word;
+                  // Si la palabra es muy larga, dividirla
+                  if (doc.getTextWidth(word) > maxWidth) {
+                    let remainingWord = word;
+                    while (remainingWord.length > 0) {
+                      let charCount = 0;
+                      let testWord = '';
+                      while (charCount < remainingWord.length && doc.getTextWidth(testWord + remainingWord[charCount]) <= maxWidth) {
+                        testWord += remainingWord[charCount];
+                        charCount++;
+                      }
+                      if (testWord.length === 0) testWord = remainingWord[0]; // Al menos un carácter
+                      lines.push(testWord);
+                      remainingWord = remainingWord.substring(testWord.length);
+                    }
+                    currentLine = '';
+                  } else {
+                    currentLine = word;
+                  }
                 }
               });
               if (currentLine) lines.push(currentLine);
@@ -492,7 +531,11 @@ export function usePDFExport() {
               doc.setTextColor(255, 255, 255);
               xPos = startX + 2;
               tableHeaders.forEach((header, index) => {
-                doc.text(header.substring(0, 10), xPos, tableY);
+                const maxWidth = columnWidths[index] - 2;
+                const headerText = doc.getTextWidth(header) > maxWidth ? 
+                  header.substring(0, Math.floor(header.length * 0.8)) + "..." : 
+                  header;
+                doc.text(headerText, xPos, tableY);
                 xPos += columnWidths[index];
               });
               tableY += 10;
@@ -554,8 +597,7 @@ export function usePDFExport() {
       // Descargar el PDF
       doc.save(fileName);
       
-    } catch (error) {
-      console.error("Error al generar PDF:", error);
+    } catch {
       alert("Error al generar el PDF. Por favor, intenta de nuevo.");
     }
   };

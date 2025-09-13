@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { OGG, Herramienta } from '../lib/database';
+import { OGG, Herramienta, Dominio } from '../lib/database';
 
 export interface UseCobitDataReturn {
-  dominios: {code: string, name: string}[];
+  dominios: Dominio[];
   objetivos: OGG[];
   herramientas: Herramienta[];
   loading: boolean;
@@ -11,7 +11,7 @@ export interface UseCobitDataReturn {
 }
 
 export function useCobitData(): UseCobitDataReturn {
-  const [dominios, setDominios] = useState<{code: string, name: string}[]>([]);
+  const [dominios, setDominios] = useState<Dominio[]>([]);
   const [objetivos, setObjetivos] = useState<OGG[]>([]);
   const [herramientas, setHerramientas] = useState<Herramienta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,6 @@ export function useCobitData(): UseCobitDataReturn {
       setObjetivos(objetivosData);
       setHerramientas(herramientasData);
     } catch (err) {
-      console.error('Error al cargar datos de COBIT:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setLoading(false);
@@ -91,7 +90,6 @@ export function useObjetivosByDominio(dominio?: string) {
         const data = await response.json();
         setObjetivos(data);
       } catch (err) {
-        console.error('Error al cargar objetivos:', err);
         setError(err instanceof Error ? err.message : 'Error desconocido');
       } finally {
         setLoading(false);
