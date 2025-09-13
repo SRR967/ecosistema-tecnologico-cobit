@@ -24,15 +24,15 @@ export default function CobitObjectiveCard({
   const getLevelColor = (level: number): string => {
     switch (level) {
       case 1:
-        return "#fefe0e"; // Amarillo
+        return "#9AA0A6"; // Gris
       case 2:
-        return "#f8bf08"; // Naranja claro
+        return "#4FB4FF"; // Azul claro
       case 3:
-        return "#fc7e0c"; // Naranja
+        return "#0594FF"; // Azul
       case 4:
-        return "#12ee12"; // Verde
+        return "#E25088"; // Rosa
       case 5:
-        return "#0446ea"; // Azul
+        return "#78206E"; // Morado
       default:
         return "#F3F4F6"; // Gris por defecto
     }
