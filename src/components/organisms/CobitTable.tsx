@@ -39,9 +39,7 @@ export default function CobitTable({
         isSpecificMode:
           selectedObjectives !== undefined && selectedObjectives.length > 0,
       });
-    } catch (error) {
-      console.error("Error al exportar PDF:", error);
-    }
+    } catch {}
   };
 
   const [sortField, setSortField] =

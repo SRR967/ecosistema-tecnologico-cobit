@@ -49,7 +49,6 @@ function EcosistemaContent() {
 
     // Debug: mostrar objetivos parseados
     if (objectives.length > 0) {
-      console.log("🎯 Objetivos seleccionados desde URL:", objectives);
     }
   }, [searchParams]);
 

@@ -24,9 +24,11 @@ export default function MultiSelect({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Filtrar opciones basado en el término de búsqueda
-  const filteredOptions = options.filter((option) =>
-    option.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = options
+    .filter((option) => option && option.trim() !== "")
+    .filter((option) =>
+      option.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   // Manejar clic fuera del dropdown
   useEffect(() => {
@@ -88,24 +90,26 @@ export default function MultiSelect({
             {selectedValues.length === 0 ? (
               <span className="text-gray-500">{placeholder}</span>
             ) : (
-              selectedValues.map((value) => (
-                <span
-                  key={value}
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
-                >
-                  {value}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveOption(value);
-                    }}
-                    className="ml-1 text-blue-600 hover:text-blue-800"
+              selectedValues
+                .filter((value) => value && value.trim() !== "")
+                .map((value) => (
+                  <span
+                    key={value}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
                   >
-                    ×
-                  </button>
-                </span>
-              ))
+                    {value}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveOption(value);
+                      }}
+                      className="ml-1 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
             )}
           </div>
           <div className="flex items-center space-x-1 ml-2">

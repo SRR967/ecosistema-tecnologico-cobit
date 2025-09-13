@@ -94,7 +94,6 @@ export function useCobitGraph(
       const result = await response.json();
       setData(result);
     } catch (err) {
-      console.error('Error al cargar grafo COBIT:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
       setData({ nodes: [], links: [] });
     } finally {

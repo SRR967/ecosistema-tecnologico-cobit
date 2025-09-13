@@ -4,157 +4,157 @@
 -- Crear extensión UUID si no existe
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ─────────────────────────────────────────────────────────────────────────────
--- 1) OGG
--- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE ogg (
-  id           TEXT PRIMARY KEY,
-  nombre       TEXT NOT NULL,
-  descripcion  TEXT NOT NULL,
-  proposito    TEXT NOT NULL,
-  -- Opcional: valida formato típico como APO01, DSS01, etc.
-  CHECK (id ~ '^[A-Z]{3}[0-9]{2}$')
+-- ============================================================================
+-- Reinicio ordenado (para desarrollo)
+-- ============================================================================
+DROP TABLE IF EXISTS actividad   CASCADE;
+DROP TABLE IF EXISTS practica    CASCADE;
+DROP TABLE IF EXISTS herramienta CASCADE;
+DROP TABLE IF EXISTS ogg         CASCADE;
+DROP TABLE IF EXISTS dominio     CASCADE;
+
+-- ============================================================================
+-- 0) Dominio (COBIT 2019)  [sin campo descripcion]
+-- ============================================================================
+CREATE TABLE dominio (
+  codigo  TEXT PRIMARY KEY
+          CHECK (codigo ~ '^[A-Z]{3}$'),   -- EDM, APO, BAI, DSS, MEA
+  nombre  TEXT NOT NULL
 );
 
--- ─────────────────────────────────────────────────────────────────────────────
+-- Carga inicial de dominios COBIT 2019
+INSERT INTO dominio (codigo, nombre) VALUES
+  ('EDM', 'Evaluar, Dirigir y Monitorear'),
+  ('APO', 'Alinear, Planificar y Organizar'),
+  ('BAI', 'Construir, Adquirir e Implementar'),
+  ('DSS', 'Entregar, Dar Soporte y Servicio'),
+  ('MEA', 'Monitorizar, Evaluar y Valorar');
+
+-- ============================================================================
+-- 1) OGG (Objetivo de Gobierno/Gestión)
+--    - dominio_codigo es columna generada (STORED)
+--    - FK sin ON UPDATE CASCADE (usa RESTRICT)
+-- ============================================================================
+CREATE TABLE ogg (
+  id             TEXT PRIMARY KEY,
+  nombre         TEXT NOT NULL,
+  proposito      TEXT NOT NULL,
+  CHECK (id ~ '^[A-Z]{3}[0-9]{2}$'),
+
+  dominio_codigo TEXT GENERATED ALWAYS AS (substr(id, 1, 3)) STORED,
+
+  CONSTRAINT fk_ogg_dominio
+    FOREIGN KEY (dominio_codigo)
+    REFERENCES dominio(codigo)
+    ON UPDATE RESTRICT
+    ON DELETE RESTRICT
+);
+
+CREATE INDEX idx_ogg_dominio_codigo ON ogg(dominio_codigo);
+
+-- ============================================================================
 -- 2) Práctica
--- ─────────────────────────────────────────────────────────────────────────────
+-- ============================================================================
 CREATE TABLE practica (
   practica_id  TEXT PRIMARY KEY,
   ogg_id       TEXT NOT NULL REFERENCES ogg(id)
                ON UPDATE CASCADE
                ON DELETE RESTRICT,
   nombre       TEXT NOT NULL,
-  -- Opcional: formato <OGG>-P<NN>, p.ej., DSS01-P01
-  CHECK (practica_id ~ '^[A-Z]{3}[0-9]{2}-P[0-9]{2}$')
+  CHECK (practica_id ~ '^[A-Z]{3}[0-9]{2}-P[0-9]{2}$')  -- p.ej., DSS01-P01
 );
 
 CREATE INDEX idx_practica_ogg_id ON practica(ogg_id);
 
--- ─────────────────────────────────────────────────────────────────────────────
+-- ============================================================================
 -- 3) Herramienta
--- ─────────────────────────────────────────────────────────────────────────────
+-- ============================================================================
 CREATE TABLE herramienta (
   id               TEXT PRIMARY KEY,
   categoria        TEXT NOT NULL,
   descripcion      TEXT NOT NULL,
-  casos_uso        TEXT[] NOT NULL,      -- array de texto, sin normalizar
+  casos_uso        TEXT[] NOT NULL,
   tipo_herramienta TEXT NOT NULL
 );
 
--- ─────────────────────────────────────────────────────────────────────────────
+-- ============================================================================
 -- 4) Actividad
--- ─────────────────────────────────────────────────────────────────────────────
+-- ============================================================================
 CREATE TABLE actividad (
-  actividad_id   TEXT PRIMARY KEY,
-  practica_id    TEXT NOT NULL REFERENCES practica(practica_id)
-                  ON UPDATE CASCADE
-                  ON DELETE RESTRICT,
-  descripcion    TEXT NOT NULL,
-  nivel_capacidad SMALLINT NOT NULL CHECK (nivel_capacidad BETWEEN 1 AND 5),
-  herramienta_id TEXT REFERENCES herramienta(id)
-                  ON UPDATE CASCADE
-                  ON DELETE RESTRICT,
-  justificacion  TEXT NOT NULL,
-  observaciones  TEXT,
-  integracion    TEXT,
-  -- Opcional: formato <OGG>-P<NN>-A<NN>, p.ej., DSS01-P01-A01
-  CHECK (actividad_id ~ '^[A-Z]{3}[0-9]{2}-P[0-9]{2}-A[0-9]{2}$')
+  actividad_id     TEXT PRIMARY KEY,
+  practica_id      TEXT NOT NULL REFERENCES practica(practica_id)
+                    ON UPDATE CASCADE
+                    ON DELETE RESTRICT,
+  descripcion      TEXT NOT NULL,
+  nivel_capacidad  SMALLINT NOT NULL CHECK (nivel_capacidad BETWEEN 1 AND 5),
+  herramienta_id   TEXT REFERENCES herramienta(id)
+                    ON UPDATE CASCADE
+                    ON DELETE RESTRICT,
+  justificacion    TEXT NOT NULL,
+  observaciones    TEXT,
+  integracion      TEXT,
+  CHECK (actividad_id ~ '^[A-Z]{3}[0-9]{2}-P[0-9]{2}-A[0-9]{2}$')  -- DSS01-P01-A01
 );
 
 CREATE INDEX idx_actividad_practica_id    ON actividad(practica_id);
 CREATE INDEX idx_actividad_herramienta_id ON actividad(herramienta_id);
 
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- INSERCIÓN DE DATOS - TABLA OGG
 -- ─────────────────────────────────────────────────────────────────────────────
 
-INSERT INTO ogg (id, nombre, descripcion, proposito) VALUES 
+INSERT INTO ogg (id, nombre, proposito) VALUES 
 
--- Dominio APO (Alinear, Planear y Organizar)
-('APO01', 'Marco de gestión de I&T gestionado', 'Diseñe el sistema de gestión de I&T empresarial basándose en los objetivos empresariales y otros factores de diseño. Con base en este diseño, implemente todos los componentes necesarios del sistema de gestión.', 'Implementar un enfoque de gestión consistente para cumplir con los requisitos de gobernanza empresarial, que cubra componentes de gobernanza tales como procesos de gestión, estructuras organizacionales, roles y responsabilidades, actividades confiables y repetibles, elementos de información, políticas y procedimientos, habilidades y competencias, cultura y comportamiento, y servicios, infraestructura y aplicaciones.'),
-
-('APO02', 'Estrategia gestionada', 'Proporcionar una visión integral del entorno empresarial y de I&T actual, la dirección futura y las iniciativas necesarias para migrar al entorno deseado. Asegurar que el nivel deseado de digitalización sea parte integral de la dirección futura y la estrategia de I&T. Evaluar la madurez digital actual de la organización y desarrollar una hoja de ruta para cerrar las brechas. Junto con el negocio, replantear las operaciones internas, así como las actividades de atención al cliente. Asegurar el enfoque en la transformación de toda la organización. Aprovechar los componentes básicos de la arquitectura empresarial, los componentes de gobernanza y el ecosistema de la organización, incluyendo los servicios externos y las capacidades relacionadas, para permitir una respuesta fiable, ágil y eficiente a los objetivos estratégicos.', 'Apoyar la estrategia de transformación digital de la organización y generar el valor deseado mediante una hoja de ruta de cambios graduales. Aplicar un enfoque holístico de I&T, garantizando que cada iniciativa esté claramente conectada con una estrategia global. Impulsar el cambio en todos los aspectos de la organización, desde canales y procesos hasta datos, cultura, habilidades, modelo operativo e incentivos.'),
-
-('APO03', 'Arquitectura empresarial gestionada', 'Establecer una arquitectura común que incluya las capas de arquitectura de procesos de negocio, información, datos, aplicaciones y tecnología. Crear modelos y prácticas clave que describan las arquitecturas de referencia y objetivo, en consonancia con la estrategia empresarial y de I&T. Definir los requisitos de taxonomía, estándares, directrices, procedimientos, plantillas y herramientas, y establecer una conexión entre estos componentes. Mejorar la alineación, aumentar la agilidad, optimizar la calidad de la información y generar posibles ahorros de costes mediante iniciativas como la reutilización de componentes básicos.', 'Representar los diferentes bloques que conforman la empresa y sus interrelaciones, así como los principios que guían su diseño y evolución a lo largo del tiempo, para permitir una entrega estándar, responsiva y eficiente de los objetivos operativos y estratégicos.'),
-
-('APO04', 'Innovación gestionada', 'Manténgase al tanto de las tendencias de I&T y de los servicios relacionados, y monitoree las tendencias tecnológicas emergentes. Identifique proactivamente las oportunidades de innovación y planifique cómo aprovecharlas en relación con las necesidades del negocio y la estrategia de I&T definida. Analice qué oportunidades de innovación o mejora empresarial pueden generarse mediante tecnologías emergentes, servicios o innovación empresarial impulsada por I&T; mediante tecnologías ya establecidas; y mediante la innovación en los procesos empresariales y de TI. Influya en la planificación estratégica y las decisiones sobre arquitectura empresarial.', 'Lograr ventaja competitiva, innovación empresarial, mejor experiencia del cliente y mayor eficacia y eficiencia operativa mediante la explotación de los desarrollos de I&T y las tecnologías emergentes.'),
-
-('APO05', 'Cartera gestionada', 'Ejecutar la dirección estratégica establecida para las inversiones, en consonancia con la visión de la arquitectura empresarial y la hoja de ruta de I&T. Considerar las diferentes categorías de inversiones y las limitaciones de recursos y financiación. Evaluar, priorizar y equilibrar programas y servicios, gestionando la demanda dentro de las limitaciones de recursos y financiación, en función de su alineación con los objetivos estratégicos, el valor de la empresa y el riesgo. Incorporar los programas seleccionados a la cartera activa de productos o servicios para su ejecución. Supervisar el rendimiento de la cartera general de productos, servicios y programas, proponiendo ajustes según sea necesario en respuesta al rendimiento de los programas, productos o servicios o a los cambios en las prioridades empresariales.', 'Optimizar el rendimiento de la cartera general de programas en respuesta al desempeño individual de programas, productos y servicios y a las cambiantes prioridades y demandas de la empresa.'),
-
-('APO06', 'Presupuesto y costos administrados', 'Gestionar las actividades financieras relacionadas con I&T, tanto en las funciones de negocio como de TI, abarcando la gestión presupuestaria, de costos y beneficios, y la priorización del gasto mediante prácticas presupuestarias formales y un sistema justo y equitativo de asignación de costos a la empresa. Consultar con las partes interesadas para identificar y controlar los costos y beneficios totales en el contexto de los planes estratégicos y tácticos de I&T. Implementar medidas correctivas cuando sea necesario.', 'Fomentar la colaboración entre las partes interesadas de TI y la empresa para facilitar el uso eficaz y eficiente de los recursos de TI y brindar transparencia y rendición de cuentas sobre el coste y el valor comercial de las soluciones y servicios. Facilitar la toma de decisiones informadas en la empresa sobre el uso de las soluciones y servicios de TI.'),
-
-('APO07', 'Recursos humanos gestionados', 'Proporcionar un enfoque estructurado para garantizar el reclutamiento/adquisición, planificación, evaluación y desarrollo óptimos de los recursos humanos (tanto internos como externos).', 'Optimizar las capacidades de los recursos humanos para cumplir los objetivos empresariales.'),
-
-('APO08', 'Relaciones gestionadas', 'Gestionar las relaciones con las partes interesadas del negocio de forma formal y transparente, garantizando así la confianza mutua y un enfoque conjunto en el logro de los objetivos estratégicos, dentro de los límites presupuestarios y la tolerancia al riesgo. Fundamentar las relaciones en una comunicación abierta y transparente, un lenguaje común y la disposición a asumir la responsabilidad y responsabilidad de las decisiones clave por ambas partes. El negocio y el departamento de TI deben colaborar para lograr resultados empresariales exitosos que respalden los objetivos empresariales.', 'Habilitar los conocimientos, las habilidades y los comportamientos adecuados para crear mejores resultados, mayor confianza, confianza mutua y un uso eficaz de los recursos que estimulen una relación productiva con las partes interesadas del negocio.'),
-
-('APO09', 'Acuerdos de servicios gestionados', 'Alinear los productos y servicios habilitados para I&T y los niveles de servicio con las necesidades y expectativas de la empresa, incluida la identificación, especificación, diseño, publicación, acuerdo y monitoreo de productos y servicios de I&T, niveles de servicio e indicadores de desempeño.', 'Garantizar que los productos, servicios y niveles de servicio de I&T satisfagan las necesidades empresariales actuales y futuras.'),
-
-('APO10', 'Proveedores gestionados', 'Gestionar los productos y servicios relacionados con I&T proporcionados por todo tipo de proveedores para satisfacer los requisitos empresariales. Esto incluye la búsqueda y selección de proveedores, la gestión de relaciones, la gestión de contratos, y la revisión y supervisión del rendimiento y el ecosistema de proveedores (incluida la cadena de suministro ascendente) para garantizar la eficacia y el cumplimiento normativo.', 'Optimizar las capacidades de I&T disponibles para respaldar la estrategia y la hoja de ruta de I&T, minimizar el riesgo asociado con proveedores de bajo rendimiento o que no cumplen con las normas y garantizar precios competitivos.'),
-
-('APO11', 'Calidad gestionada', 'Definir y comunicar los requisitos de calidad en todos los procesos, procedimientos y resultados empresariales relacionados. Facilitar los controles, la monitorización continua y el uso de prácticas y estándares probados en las iniciativas de mejora continua y eficiencia.', 'Garantizar la entrega consistente de soluciones y servicios tecnológicos para cumplir con los requisitos de calidad de la empresa y satisfacer las necesidades de las partes interesadas.'),
-
-('APO12', 'Riesgo gestionado', 'Identificar, evaluar y reducir continuamente el riesgo relacionado con I&T dentro de los niveles de tolerancia establecidos por la dirección ejecutiva de la empresa.', 'Integrar la gestión del riesgo empresarial relacionado con I&T con la gestión general del riesgo empresarial (ERM) y equilibrar los costos y beneficios de la gestión del riesgo empresarial relacionado con I&T.'),
-
-('APO13', 'Seguridad administrada', 'Definir, operar y monitorear un sistema de seguridad de la información.', 'Mantener el impacto y la ocurrencia de incidentes de privacidad de seguridad de la información dentro de los niveles de tolerancia al riesgo de la empresa.'),
-
-('APO14', 'Datos gestionados', 'Lograr y mantener una gestión eficaz de los activos de datos empresariales a lo largo del ciclo de vida de los datos, desde la creación hasta la entrega, el mantenimiento y el archivo.', 'Garantizar la utilización eficaz de los activos de datos críticos para lograr las metas y objetivos empresariales.'),
+-- Dominio APO (Alinear, Planificar y Organizar)
+('APO01', 'Marco de gestión de I&T gestionado', 'Implementar un enfoque de gestión consistente para cumplir con los requisitos de gobernanza empresarial, que cubra componentes de gobernanza tales como procesos de gestión, estructuras organizacionales, roles y responsabilidades, actividades confiables y repetibles, elementos de información, políticas y procedimientos, habilidades y competencias, cultura y comportamiento, y servicios, infraestructura y aplicaciones.'),
+('APO02', 'Estrategia gestionada', 'Apoyar la estrategia de transformación digital de la organización y generar el valor deseado mediante una hoja de ruta de cambios graduales. Aplicar un enfoque holístico de I&T, garantizando que cada iniciativa esté claramente conectada con una estrategia global. Impulsar el cambio en todos los aspectos de la organización, desde canales y procesos hasta datos, cultura, habilidades, modelo operativo e incentivos.'),
+('APO03', 'Arquitectura empresarial gestionada', 'Representar los diferentes bloques que conforman la empresa y sus interrelaciones, así como los principios que guían su diseño y evolución a lo largo del tiempo, para permitir una entrega estándar, responsiva y eficiente de los objetivos operativos y estratégicos.'),
+('APO04', 'Innovación gestionada', 'Lograr ventaja competitiva, innovación empresarial, mejor experiencia del cliente y mayor eficacia y eficiencia operativa mediante la explotación de los desarrollos de I&T y las tecnologías emergentes.'),
+('APO05', 'Cartera gestionada', 'Optimizar el rendimiento de la cartera general de programas en respuesta al desempeño individual de programas, productos y servicios y a las cambiantes prioridades y demandas de la empresa.'),
+('APO06', 'Presupuesto y costos administrados', 'Fomentar la colaboración entre las partes interesadas de TI y la empresa para facilitar el uso eficaz y eficiente de los recursos de TI y brindar transparencia y rendición de cuentas sobre el coste y el valor comercial de las soluciones y servicios. Facilitar la toma de decisiones informadas en la empresa sobre el uso de las soluciones y servicios de TI.'),
+('APO07', 'Recursos humanos gestionados', 'Optimizar las capacidades de los recursos humanos para cumplir los objetivos empresariales.'),
+('APO08', 'Relaciones gestionadas', 'Habilitar los conocimientos, las habilidades y los comportamientos adecuados para crear mejores resultados, mayor confianza, confianza mutua y un uso eficaz de los recursos que estimulen una relación productiva con las partes interesadas del negocio.'),
+('APO09', 'Acuerdos de servicios gestionados', 'Garantizar que los productos, servicios y niveles de servicio de I&T satisfagan las necesidades empresariales actuales y futuras.'),
+('APO10', 'Proveedores gestionados', 'Optimizar las capacidades de I&T disponibles para respaldar la estrategia y la hoja de ruta de I&T, minimizar el riesgo asociado con proveedores de bajo rendimiento o que no cumplen con las normas y garantizar precios competitivos.'),
+('APO11', 'Calidad gestionada', 'Garantizar la entrega consistente de soluciones y servicios tecnológicos para cumplir con los requisitos de calidad de la empresa y satisfacer las necesidades de las partes interesadas.'),
+('APO12', 'Riesgo gestionado', 'Integrar la gestión del riesgo empresarial relacionado con I&T con la gestión general del riesgo empresarial (ERM) y equilibrar los costos y beneficios de la gestión del riesgo empresarial relacionado con I&T.'),
+('APO13', 'Seguridad administrada', 'Mantener el impacto y la ocurrencia de incidentes de privacidad de seguridad de la información dentro de los niveles de tolerancia al riesgo de la empresa.'),
+('APO14', 'Datos gestionados', 'Garantizar la utilización eficaz de los activos de datos críticos para lograr las metas y objetivos empresariales.'),
 
 -- Dominio BAI (Construir, Adquirir e Implementar)
-('BAI01', 'Programas administrados', 'Gestionar todos los programas de la cartera de inversiones de acuerdo con la estrategia empresarial y de forma coordinada, con base en un enfoque estándar de gestión de programas. Iniciar, planificar, controlar y ejecutar programas, y supervisar el valor esperado del programa.', 'Obtenga el valor comercial deseado y reduzca el riesgo de retrasos inesperados, costos y pérdida de valor. Para ello, mejore la comunicación y la participación de las empresas y los usuarios finales, garantice el valor y la calidad de los entregables del programa y el seguimiento de los proyectos dentro de los programas, y maximice la contribución del programa a la cartera de inversiones.'),
-
-('BAI02', 'Definición de requisitos gestionados', 'Identificar soluciones y analizar los requisitos antes de su adquisición o creación para garantizar que se ajusten a los requisitos estratégicos de la empresa, que abarcan procesos de negocio, aplicaciones, información/datos, infraestructura y servicios. Coordinar la revisión de opciones viables con las partes interesadas, incluyendo la relación entre costos y beneficios, el análisis de riesgos y la aprobación de los requisitos y las soluciones propuestas.', 'Crear soluciones óptimas que satisfagan las necesidades de la empresa y minimicen el riesgo.'),
-
-('BAI03', 'Identificación y desarrollo de soluciones gestionadas', 'Establecer y mantener los productos y servicios identificados (tecnología, procesos de negocio y flujos de trabajo) de acuerdo con los requisitos de la empresa, abarcando el diseño, el desarrollo, la adquisición/abastecimiento y la colaboración con proveedores. Gestionar la configuración, la preparación de pruebas, las pruebas, la gestión de requisitos y el mantenimiento de los procesos de negocio, las aplicaciones, la información/datos, la infraestructura y los servicios.', 'Garantizar una entrega ágil y escalable de productos y servicios digitales. Establecer soluciones oportunas y rentables (tecnología, procesos de negocio y flujos de trabajo) capaces de respaldar los objetivos estratégicos y operativos de la empresa.'),
-
-('BAI04', 'Disponibilidad y capacidad gestionadas', 'Equilibrar las necesidades actuales y futuras de disponibilidad, rendimiento y capacidad con una prestación de servicios rentable. Esto incluye la evaluación de las capacidades actuales, la previsión de necesidades futuras según los requisitos del negocio, el análisis del impacto en el negocio y la evaluación de riesgos para planificar e implementar acciones que satisfagan los requisitos identificados.', 'Mantener la disponibilidad del servicio, la gestión eficiente de los recursos y la optimización del rendimiento del sistema mediante la predicción del rendimiento futuro y los requisitos de capacidad.'),
-
-('BAI05', 'Cambio organizacional gestionado', 'Maximice la probabilidad de implementar con éxito un cambio organizacional sostenible en toda la empresa, con rapidez y con un riesgo reducido. Abarque el ciclo de vida completo del cambio y a todas las partes interesadas afectadas en el negocio y en TI.', 'Preparar y comprometer a las partes interesadas para el cambio empresarial y reducir el riesgo de fracaso.'),
-
-('BAI06', 'Cambios de TI gestionados', 'Gestione todos los cambios de forma controlada, incluyendo los cambios estándar y el mantenimiento de emergencia relacionado con los procesos de negocio, las aplicaciones y la infraestructura. Esto incluye estándares y procedimientos de cambio, evaluación de impacto, priorización y autorización, cambios de emergencia, seguimiento, informes, cierre y documentación.', 'Permitir una implementación rápida y confiable de los cambios en la empresa. Mitigar el riesgo de afectar negativamente la estabilidad o la integridad del entorno modificado.'),
-
-('BAI07', 'Aceptación y transición de cambios de TI gestionados', 'Aceptar formalmente y poner en funcionamiento nuevas soluciones. Esto incluye la planificación de la implementación, la conversión de sistemas y datos, las pruebas de aceptación, la comunicación, la preparación para la liberación, la puesta en producción de procesos de negocio y servicios de I&T nuevos o modificados, el soporte inicial a producción y una revisión posterior a la implementación.', 'Implementar soluciones de forma segura y de acuerdo con las expectativas y resultados acordados.'),
-
-('BAI08', 'Conocimiento gestionado', 'Mantener la disponibilidad de conocimiento e información de gestión relevantes, actuales, validados y fiables para respaldar todas las actividades del proceso y facilitar la toma de decisiones relacionadas con la gobernanza y la gestión de la I&T empresarial. Planificar la identificación, recopilación, organización, mantenimiento, uso y retirada del conocimiento.', 'Proporcionar el conocimiento y la información necesarios para apoyar a todo el personal en la gobernanza y gestión de la I&T empresarial y permitir una toma de decisiones informada.'),
-
-('BAI09', 'Activos gestionados', 'Gestione los activos de I&T a lo largo de su ciclo de vida para garantizar que su uso genere valor a un coste óptimo, se mantengan operativos (aptos para su propósito) y se contabilicen y protejan físicamente. Asegúrese de que los activos críticos para la capacidad de servicio sean fiables y estén disponibles. Gestione las licencias de software para garantizar que se adquiera, conserve e implemente la cantidad óptima según el uso requerido por la empresa, y que el software instalado cumpla con los acuerdos de licencia.', 'Contabilizar todos los activos de I&T y optimizar el valor proporcionado por su uso.'),
-
-('BAI10', 'Configuración administrada', 'Definir y mantener las descripciones y relaciones entre los recursos y capacidades clave necesarios para la prestación de servicios de I&T. Esto incluye la recopilación de información de configuración, el establecimiento de líneas base, la verificación y auditoría de la información de configuración, y la actualización del repositorio de configuración.', 'Proporcionar información suficiente sobre los activos del servicio para permitir su gestión eficaz. Evaluar el impacto de los cambios y gestionar las incidencias del servicio.'),
-
-('BAI11', 'Proyectos gestionados', 'Gestionar todos los proyectos iniciados dentro de la empresa, en consonancia con la estrategia empresarial y de forma coordinada, con base en el enfoque estándar de gestión de proyectos. Iniciar, planificar, controlar y ejecutar proyectos, y cerrarlos con una revisión posterior a la implementación.', 'Logre los resultados definidos del proyecto y reduzca el riesgo de retrasos inesperados, costos y pérdida de valor mejorando la comunicación y la participación de la empresa y los usuarios finales. Garantice el valor y la calidad de los entregables del proyecto y maximice su contribución a los programas y la cartera de inversiones definidos.'),
+('BAI01', 'Programas administrados', 'Obtenga el valor comercial deseado y reduzca el riesgo de retrasos inesperados, costos y pérdida de valor. Para ello, mejore la comunicación y la participación de las empresas y los usuarios finales, garantice el valor y la calidad de los entregables del programa y el seguimiento de los proyectos dentro de los programas, y maximice la contribución del programa a la cartera de inversiones.'),
+('BAI02', 'Definición de requisitos gestionados', 'Crear soluciones óptimas que satisfagan las necesidades de la empresa y minimicen el riesgo.'),
+('BAI03', 'Identificación y desarrollo de soluciones gestionadas', 'Garantizar una entrega ágil y escalable de productos y servicios digitales. Establecer soluciones oportunas y rentables (tecnología, procesos de negocio y flujos de trabajo) capaces de respaldar los objetivos estratégicos y operativos de la empresa.'),
+('BAI04', 'Disponibilidad y capacidad gestionadas', 'Mantener la disponibilidad del servicio, la gestión eficiente de los recursos y la optimización del rendimiento del sistema mediante la predicción del rendimiento futuro y los requisitos de capacidad.'),
+('BAI05', 'Cambio organizacional gestionado', 'Preparar y comprometer a las partes interesadas para el cambio empresarial y reducir el riesgo de fracaso.'),
+('BAI06', 'Cambios de TI gestionados', 'Permitir una implementación rápida y confiable de los cambios en la empresa. Mitigar el riesgo de afectar negativamente la estabilidad o la integridad del entorno modificado.'),
+('BAI07', 'Aceptación y transición de cambios de TI gestionados', 'Implementar soluciones de forma segura y de acuerdo con las expectativas y resultados acordados.'),
+('BAI08', 'Conocimiento gestionado', 'Proporcionar el conocimiento y la información necesarios para apoyar a todo el personal en la gobernanza y gestión de la I&T empresarial y permitir una toma de decisiones informada.'),
+('BAI09', 'Activos gestionados', 'Contabilizar todos los activos de I&T y optimizar el valor proporcionado por su uso.'),
+('BAI10', 'Configuración administrada', 'Proporcionar información suficiente sobre los activos del servicio para permitir su gestión eficaz. Evaluar el impacto de los cambios y gestionar las incidencias del servicio.'),
+('BAI11', 'Proyectos gestionados', 'Logre los resultados definidos del proyecto y reduzca el riesgo de retrasos inesperados, costos y pérdida de valor mejorando la comunicación y la participación de la empresa y los usuarios finales. Garantice el valor y la calidad de los entregables del proyecto y maximice su contribución a los programas y la cartera de inversiones definidos.'),
 
 -- Dominio DSS (Entregar, Dar Soporte y Servicio)
-('DSS01', 'Operaciones gestionadas', 'Coordinar y ejecutar las actividades y los procedimientos operativos necesarios para la prestación de servicios de TI, tanto internos como externos. Esto incluye la ejecución de procedimientos operativos estándar predefinidos y las actividades de supervisión requeridas.', 'Entregar resultados de productos y servicios operativos de I&T según lo planificado.'),
-
-('DSS02', 'Solicitudes de servicio gestionadas e incidentes', 'Proporcionar una respuesta oportuna y eficaz a las solicitudes de los usuarios y la resolución de todo tipo de incidentes. Restablecer el servicio normal; registrar y atender las solicitudes de los usuarios; y registrar, investigar, diagnosticar, escalar y resolver incidentes.', 'Aumente la productividad y minimice las interrupciones mediante la rápida resolución de consultas e incidentes de los usuarios. Evalúe el impacto de los cambios y gestione los incidentes de servicio. Resuelva las solicitudes de los usuarios y restablezca el servicio en respuesta a los incidentes.'),
-
-('DSS03', 'Problemas gestionados', 'Identificar y clasificar los problemas y sus causas. Ofrecer una solución oportuna para evitar incidentes recurrentes. Ofrecer recomendaciones de mejora.', 'Aumente la disponibilidad, mejore los niveles de servicio, reduzca los costos, mejore la comodidad y la satisfacción del cliente al reducir la cantidad de problemas operativos e identifique las causas fundamentales como parte de la resolución de problemas.'),
-
-('DSS04', 'Continuidad gestionada', 'Establecer y mantener un plan que permita a las organizaciones empresariales y de TI responder a incidentes y adaptarse rápidamente a las interrupciones. Esto permitirá la continuidad operativa de los procesos empresariales críticos y los servicios de TI requeridos, y mantendrá la disponibilidad de recursos, activos e información a un nivel aceptable para la empresa.', 'Adaptarse rápidamente, continuar las operaciones comerciales y mantener la disponibilidad de recursos e información a un nivel aceptable para la empresa en caso de una interrupción significativa (por ejemplo, amenazas, oportunidades, demandas).'),
-
-('DSS05', 'Servicios de seguridad gestionados', 'Proteger la información empresarial para mantener un nivel de riesgo de seguridad de la información aceptable para la empresa, de acuerdo con la política de seguridad. Establecer y mantener roles de seguridad de la información y privilegios de acceso. Realizar monitoreo de seguridad.', 'Minimizar el impacto empresarial de las vulnerabilidades e incidentes de seguridad de la información operativa.'),
-
-('DSS06', 'Controles de procesos empresariales gestionados', 'Definir y mantener controles adecuados de los procesos de negocio para garantizar que la información relacionada con, y procesada por, los procesos internos o subcontratados cumpla con todos los requisitos de control de la información pertinentes. Identificar los requisitos de control de la información pertinentes. Gestionar y operar controles adecuados de entrada, rendimiento y salida (controles de aplicación) para garantizar que la información y su procesamiento cumplan con estos requisitos.', 'Mantener la integridad de la información y la seguridad de los activos de información manejados dentro de los procesos de negocio en la empresa o su operación subcontratada.'),
+('DSS01', 'Operaciones gestionadas', 'Entregar resultados de productos y servicios operativos de I&T según lo planificado.'),
+('DSS02', 'Solicitudes de servicio gestionadas e incidentes', 'Aumente la productividad y minimice las interrupciones mediante la rápida resolución de consultas e incidentes de los usuarios. Evalúe el impacto de los cambios y gestione los incidentes de servicio. Resuelva las solicitudes de los usuarios y restablezca el servicio en respuesta a los incidentes.'),
+('DSS03', 'Problemas gestionados', 'Aumente la disponibilidad, mejore los niveles de servicio, reduzca los costos, mejore la comodidad y la satisfacción del cliente al reducir la cantidad de problemas operativos e identifique las causas fundamentales como parte de la resolución de problemas.'),
+('DSS04', 'Continuidad gestionada', 'Adaptarse rápidamente, continuar las operaciones comerciales y mantener la disponibilidad de recursos e información a un nivel aceptable para la empresa en caso de una interrupción significativa (por ejemplo, amenazas, oportunidades, demandas).'),
+('DSS05', 'Servicios de seguridad gestionados', 'Minimizar el impacto empresarial de las vulnerabilidades e incidentes de seguridad de la información operativa.'),
+('DSS06', 'Controles de procesos empresariales gestionados', 'Mantener la integridad de la información y la seguridad de los activos de información manejados dentro de los procesos de negocio en la empresa o su operación subcontratada.'),
 
 -- Dominio EDM (Evaluar, Dirigir y Monitorizar)
-('EDM01', 'Establecimiento y mantenimiento de un marco de gobernanza garantizado', 'Analizar y articular los requisitos para la gobernanza de las TI empresariales. Implementar y mantener componentes de gobernanza con autoridad y responsabilidades claras para lograr la misión, las metas y los objetivos de la empresa.', 'Proporcionar un enfoque coherente, integrado y alineado con el enfoque de gobernanza empresarial. Las decisiones relacionadas con I&T se toman en consonancia con las estrategias y objetivos de la empresa, y se obtiene el valor deseado. Para ello, es necesario garantizar que los procesos relacionados con I&T se supervisen de forma eficaz y transparente; que se confirme el cumplimiento de los requisitos legales, contractuales y regulatorios; y que se cumplan los requisitos de gobernanza para los miembros del consejo de administración.'),
-
-('EDM02', 'Entrega de beneficios garantizada', 'Optimizar el valor para el negocio de las inversiones en procesos de negocio, servicios de I&T y activos de I&T.', 'Obtenga un valor óptimo de las iniciativas, servicios y activos basados en I&T; una entrega rentable de soluciones y servicios; y una imagen confiable y precisa de los costos y los posibles beneficios para que las necesidades del negocio sean respaldadas de manera eficaz y eficiente.'),
-
-('EDM03', 'Optimización de riesgos garantizada', 'Asegúrese de que la tolerancia y el apetito de riesgo de la empresa se comprendan, articulen y comuniquen, y de que el riesgo al valor de la empresa relacionado con el uso de I&T se identifique y gestione.', 'Asegúrese de que el riesgo empresarial relacionado con I&T no exceda el apetito y la tolerancia al riesgo de la empresa, que el impacto del riesgo de I&T en el valor empresarial se identifique y gestione, y que el potencial de fallas de cumplimiento se minimice.'),
-
-('EDM04', 'Optimización de recursos garantizada', 'Asegúrese de que haya recursos empresariales y relacionados con I&T (personas, procesos y tecnología) adecuados y suficientes disponibles para respaldar los objetivos de la empresa de manera eficaz y a un costo óptimo.', 'Asegúrese de que las necesidades de recursos de la empresa se satisfagan de manera óptima, se optimicen los costos de I&T y haya una mayor probabilidad de obtención de beneficios y preparación para cambios futuros.'),
-
-('EDM05', 'Participación garantizada de las partes interesadas', 'Asegúrese de que las partes interesadas estén identificadas y participen en el sistema de gobernanza de I&T y de que la medición y los informes del desempeño y la conformidad de I&T de la empresa sean transparentes, y que las partes interesadas aprueben los objetivos, las métricas y las acciones correctivas necesarias.', 'Asegúrese de que las partes interesadas apoyen la estrategia y la hoja de ruta de I&T, que la comunicación con ellas sea eficaz y oportuna, y que se establezcan las bases para la elaboración de informes que permitan mejorar el rendimiento. Identifique las áreas de mejora y confirme que los objetivos y estrategias de I&T estén alineados con la estrategia de la empresa.'),
+('EDM01', 'Establecimiento y mantenimiento de un marco de gobernanza garantizado', 'Proporcionar un enfoque coherente, integrado y alineado con el enfoque de gobernanza empresarial. Las decisiones relacionadas con I&T se toman en consonancia con las estrategias y objetivos de la empresa, y se obtiene el valor deseado. Para ello, es necesario garantizar que los procesos relacionados con I&T se supervisen de forma eficaz y transparente; que se confirme el cumplimiento de los requisitos legales, contractuales y regulatorios; y que se cumplan los requisitos de gobernanza para los miembros del consejo de administración.'),
+('EDM02', 'Entrega de beneficios garantizada', 'Obtenga un valor óptimo de las iniciativas, servicios y activos basados en I&T; una entrega rentable de soluciones y servicios; y una imagen confiable y precisa de los costos y los posibles beneficios para que las necesidades del negocio sean respaldadas de manera eficaz y eficiente.'),
+('EDM03', 'Optimización de riesgos garantizada', 'Asegúrese de que el riesgo empresarial relacionado con I&T no exceda el apetito y la tolerancia al riesgo de la empresa, que el impacto del riesgo de I&T en el valor empresarial se identifique y gestione, y que el potencial de fallas de cumplimiento se minimice.'),
+('EDM04', 'Optimización de recursos garantizada', 'Asegúrese de que las necesidades de recursos de la empresa se satisfagan de manera óptima, se optimicen los costos de I&T y haya una mayor probabilidad de obtención de beneficios y preparación para cambios futuros.'),
+('EDM05', 'Participación garantizada de las partes interesadas', 'Asegúrese de que las partes interesadas apoyen la estrategia y la hoja de ruta de I&T, que la comunicación con ellas sea eficaz y oportuna, y que se establezcan las bases para la elaboración de informes que permitan mejorar el rendimiento. Identifique las áreas de mejora y confirme que los objetivos y estrategias de I&T estén alineados con la estrategia de la empresa.'),
 
 -- Dominio MEA (Monitorizar, Evaluar y Valorar)
-('MEA01', 'Monitoreo del desempeño y la conformidad gestionados', 'Recopilar, validar y evaluar los objetivos y métricas empresariales y de alineación. Supervisar que los procesos y prácticas cumplan con los objetivos y métricas de rendimiento y conformidad acordados. Generar informes sistemáticos y oportunos.', 'Proporcionar transparencia en el desempeño y la conformidad e impulsar el logro de los objetivos.'),
-
-('MEA02', 'Sistema Gestionado de Control Interno', 'Monitorear y evaluar continuamente el entorno de control, incluyendo autoevaluaciones y autoconocimiento. Capacitar a la gerencia para identificar deficiencias e ineficiencias de control e implementar acciones de mejora. Planificar, organizar y mantener estándares para la evaluación del control interno y la eficacia del control de procesos.', 'Obtener transparencia para los principales interesados sobre la adecuación del sistema de controles internos y así brindar confianza en las operaciones, seguridad en el logro de los objetivos empresariales y una adecuada comprensión del riesgo residual.'),
-
-('MEA03', 'Cumplimiento gestionado de los requisitos externos', 'Evaluar que los procesos de I&T y los procesos de negocio que los respaldan cumplan con las leyes, regulaciones y requisitos contractuales. Obtener la garantía de que se han identificado y cumplido los requisitos; integrar el cumplimiento de TI con el cumplimiento general de la empresa.', 'Asegúrese de que la empresa cumpla con todos los requisitos externos aplicables.'),
-
-('MEA04', 'Aseguramiento administrado', 'Planificar, definir el alcance y ejecutar iniciativas de aseguramiento para cumplir con los requisitos internos, la legislación, la normativa y los objetivos estratégicos. Facilitar a la dirección la entrega de un aseguramiento adecuado y sostenible en la empresa mediante la realización de revisiones y actividades de aseguramiento independientes.', 'Permitir a la organización diseñar y desarrollar iniciativas de aseguramiento eficientes y efectivas, proporcionando orientación sobre la planificación, el alcance, la ejecución y el seguimiento de las revisiones de aseguramiento, utilizando una hoja de ruta basada en enfoques de aseguramiento bien aceptados.');
+('MEA01', 'Monitoreo del desempeño y la conformidad gestionados', 'Proporcionar transparencia en el desempeño y la conformidad e impulsar el logro de los objetivos.'),
+('MEA02', 'Sistema Gestionado de Control Interno', 'Obtener transparencia para los principales interesados sobre la adecuación del sistema de controles internos y así brindar confianza en las operaciones, seguridad en el logro de los objetivos empresariales y una adecuada comprensión del riesgo residual.'),
+('MEA03', 'Cumplimiento gestionado de los requisitos externos', 'Asegúrese de que la empresa cumpla con todos los requisitos externos aplicables.'),
+('MEA04', 'Aseguramiento administrado', 'Permitir a la organización diseñar y desarrollar iniciativas de aseguramiento eficientes y efectivas, proporcionando orientación sobre la planificación, el alcance, la ejecución y el seguimiento de las revisiones de aseguramiento, utilizando una hoja de ruta basada en enfoques de aseguramiento bien aceptados.');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- INSERCIÓN DE DATOS - TABLA PRACTICA
@@ -963,7 +963,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('DSS04-P08-A01', 'DSS04-P08', 'Evaluar el cumplimiento del BCP y DRP documentados.', 4, 'Eramba', 'Eramba permite contrastar la ejecución real contra el plan documentado, evaluar desviaciones, registrar evidencia y establecer cumplimiento.', 'Ideal para entornos regulados que requieren evidencia formal post-ejercicio.', '-'),
 
-('DSS04-P08-A02', 'DSS04-P08', 'Determinar la eficacia de los planes, las capacidades de continuidad, los roles y responsabilidades, las habilidades y competencias, la resiliencia ante el incidente, la infraestructura técnica y las estructuras y relaciones organizacionales.', 4, 'Eramba', 'Ofrece trazabilidad entre pruebas, roles, responsables, infraestructura y respuesta. Permite analizar qué funcionó, qué falló y por qué.', 'Analiza el ecosistema completo post-BCP/DRP. ┌til para evaluaciones cruzadas y causa raíz.', '-'),
+('DSS04-P08-A02', 'DSS04-P08', 'Determinar la eficacia de los planes, las capacidades de continuidad, los roles y responsabilidades, las habilidades y competencias, la resiliencia ante el incidente, la infraestructura técnica y las estructuras y relaciones organizacionales.', 4, 'Eramba', 'Ofrece trazabilidad entre pruebas, roles, responsables, infraestructura y respuesta. Permite analizar qué funcionó, qué falló y por qué.', 'Analiza el ecosistema completo post-BCP/DRP. Útil para evaluaciones cruzadas y causa raíz.', '-'),
 
 ('DSS04-P08-A03', 'DSS04-P08', 'Identificar debilidades u omisiones en los planes y capacidades, y formular recomendaciones de mejora. Obtener la aprobación de la gerencia para cualquier cambio en los planes y aplicarlo mediante el proceso de control de cambios de la empresa.', 5, 'Eramba', 'Permite registrar hallazgos, generar recomendaciones, someterlas a aprobación y vincularlas a cambios con control de versiones.', 'Trazabilidad completa de mejora continua, con control formal y aprobaciones.', '-'),
 
@@ -1241,9 +1241,9 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('BAI02-P02-A02', 'BAI02-P02', 'Analice las soluciones alternativas con todas las partes interesadas. Seleccione la más adecuada según los criterios de viabilidad, incluyendo el riesgo y el costo.', 2, 'GLPI', 'Se puede coordinar con usuarios e interesados, pero sin análisis estructurado.', 'Puede usarse para recolectar opiniones, no para evaluar costo/viabilidad.', '-'),
 
-('BAI02-P02-A03', 'BAI02-P02', 'Traducir el curso de acción preferido en un plan de adquisición y desarrollo de alto nivel que identifique los recursos que se utilizarán y las etapas que requieren una decisión de seguir adelante o no.', 3, 'GLPI', 'Documenta etapas del proyecto, responsables y recursos.', '┌til para seguimiento y control, aunque limitado en detalle estratégico.', '-'),
+('BAI02-P02-A03', 'BAI02-P02', 'Traducir el curso de acción preferido en un plan de adquisición y desarrollo de alto nivel que identifique los recursos que se utilizarán y las etapas que requieren una decisión de seguir adelante o no.', 3, 'GLPI', 'Documenta etapas del proyecto, responsables y recursos.', 'Útil para seguimiento y control, aunque limitado en detalle estratégico.', '-'),
 
-('BAI02-P02-A04', 'BAI02-P02', 'Definir y ejecutar un estudio de viabilidad, una prueba piloto o una solución básica de trabajo que describa de forma clara y concisa las alternativas y mida cómo estas satisfarían los requisitos empresariales y funcionales. Incluir una evaluación de su viabilidad tecnológica y económica.', 4, 'Open Source Risk Engine', 'Puede simular escenarios y rendimientos de opciones.', '┌til como apoyo técnico para evaluación de viabilidad.', '-'),
+('BAI02-P02-A04', 'BAI02-P02', 'Definir y ejecutar un estudio de viabilidad, una prueba piloto o una solución básica de trabajo que describa de forma clara y concisa las alternativas y mida cómo estas satisfarían los requisitos empresariales y funcionales. Incluir una evaluación de su viabilidad tecnológica y económica.', 4, 'Open Source Risk Engine', 'Puede simular escenarios y rendimientos de opciones.', 'Útil como apoyo técnico para evaluación de viabilidad.', '-'),
 
 ('BAI02-P03-A01', 'BAI02-P03', 'Identificar los riesgos de calidad, funcionales y técnicos (debido, por ejemplo, a la falta de participación del usuario, expectativas poco realistas, desarrolladores que agregan funcionalidad innecesaria, suposiciones poco realistas, etc.).', 3, 'Eramba', 'Eramba permite identificar riesgos técnicos y de calidad asociados a controles, requisitos regulatorios o faltas de participación.', 'Aunque no fue diseñada para requisitos de software, se adapta bien a riesgos de tipo organizacional y de cumplimiento.', '-'),
 
@@ -1267,7 +1267,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('BAI03-P02-A02', 'BAI03-P02', 'Diseñe los pasos de procesamiento de la aplicación. Estos pasos incluyen la especificación de los tipos de transacción y las reglas de procesamiento empresarial, los controles automatizados, las definiciones de datos/objetos de negocio, los casos de uso, las interfaces externas, las restricciones de diseño y otros requisitos (p. ej., licencias, requisitos legales, estándares e internacionalización/localización).', 2, 'JFire', 'Soporta reglas, objetos, interfaces y control de transacciones.', 'Se integra fácilmente con otros servicios', '-'),
 
-('BAI03-P02-A03', 'BAI03-P02', 'Clasifique las entradas y salidas de datos según los estándares de arquitectura empresarial. Especifique el diseño de la recopilación de datos fuente. Documente las entradas de datos (independientemente de su origen) y la validación para el procesamiento de transacciones, así como los métodos de validación. Diseñe las salidas identificadas, incluyendo las fuentes de datos.', 2, 'JFire', 'Diseña formularios con validaciones incorporadas.', '┌til en soluciones empresariales', '-'),
+('BAI03-P02-A03', 'BAI03-P02', 'Clasifique las entradas y salidas de datos según los estándares de arquitectura empresarial. Especifique el diseño de la recopilación de datos fuente. Documente las entradas de datos (independientemente de su origen) y la validación para el procesamiento de transacciones, así como los métodos de validación. Diseñe las salidas identificadas, incluyendo las fuentes de datos.', 2, 'JFire', 'Diseña formularios con validaciones incorporadas.', 'Útil en soluciones empresariales', '-'),
 
 ('BAI03-P02-A04', 'BAI03-P02', 'Diseñar la interfaz del sistema/solución, incluido cualquier intercambio automatizado de datos.', 2, 'JFire', 'Admite REST/SOAP para integración de sistemas.', 'Puede integrarse con APIs externas.', '-'),
 
@@ -1453,7 +1453,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('BAI05-P04-A01', 'BAI05-P04', 'Planifique las oportunidades de capacitación que el personal necesitará para desarrollar las habilidades y actitudes apropiadas para sentirse empoderado.', 2, 'GLPI', 'Moodle cubre capacitación post-implementación; GLPI apoya documentación y soporte', 'Complementan el despliegue y estabilización del cambio', 'Moodle'),
 
-('BAI05-P04-A02', 'BAI05-P04', 'Identificar, priorizar y aprovechar oportunidades para obtener resultados rápidos. Estas podrían estar relacionadas con áreas de dificultad conocidas o factores externos que requieren atención urgente.', 2, 'Eramba', 'Permite definir responsables y hacer seguimiento del cumplimiento', '┌til si los procesos están regulados o documentados', '-'),
+('BAI05-P04-A02', 'BAI05-P04', 'Identificar, priorizar y aprovechar oportunidades para obtener resultados rápidos. Estas podrían estar relacionadas con áreas de dificultad conocidas o factores externos que requieren atención urgente.', 2, 'Eramba', 'Permite definir responsables y hacer seguimiento del cumplimiento', 'Útil si los procesos están regulados o documentados', '-'),
 
 ('BAI05-P04-A03', 'BAI05-P04', 'Aprovechar los logros rápidos obtenidos comunicando los beneficios a los afectados para demostrar que la visión va por buen camino. Perfeccionar la visión, mantener a los líderes comprometidos y generar impulso.', 2, 'Rocket.Chat', 'Facilita campañas de reconocimiento y difusión de logros', 'Puede integrarse con RRHH (OrangeHRM)', '-'),
 
@@ -1477,7 +1477,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('BAI05-P06-A05', 'BAI05-P06', 'Realizar auditorías de cumplimiento para identificar las causas de la baja adopción. Recomendar medidas correctivas.', 4, 'Eramba', 'Auditoría sobre implementación de controles y cambios definidos', 'Permite documentación de medidas correctivas', '-'),
 
-('BAI05-P07-A01', 'BAI05-P07', 'Mantener y reforzar el cambio mediante una comunicación regular que demuestre el compromiso de la alta dirección.', 2, 'Rocket.Chat', 'Comunicación oficial recurrente y liderazgo visible', '┌til como reforzador transversal del cambio', '-'),
+('BAI05-P07-A01', 'BAI05-P07', 'Mantener y reforzar el cambio mediante una comunicación regular que demuestre el compromiso de la alta dirección.', 2, 'Rocket.Chat', 'Comunicación oficial recurrente y liderazgo visible', 'Útil como reforzador transversal del cambio', '-'),
 
 ('BAI05-P07-A02', 'BAI05-P07', 'Brindar tutoría, capacitación, entrenamiento y transferencia de conocimientos al nuevo personal para sostener el cambio.', 3, 'Moodle', 'Capacitación continua y onboarding basado en cambios', 'Ideal para institucionalizar el cambio', '-'),
 
@@ -1831,7 +1831,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('BAI11-P07-A07', 'BAI11-P07', 'Establecer y operar un sistema de control de cambios para el proyecto de modo que todos los cambios a la línea base del proyecto (por ejemplo, alcance, beneficios comerciales esperados, cronograma, calidad, costo, nivel de riesgo) se revisen, aprueben e incorporen adecuadamente al plan integrado del proyecto de acuerdo con el programa y el marco de gobernanza del proyecto.', 3, 'GLPI', 'Tiene gestión de cambios robusta, flujos de aprobación, y vinculación con proyectos y tareas asociadas.', 'Su módulo ITIL facilita registrar, aprobar y hacer seguimiento a cambios en el proyecto.', 'Integración nativa con FusionInventory, OCS Inventory y posibilidad de integración con Collabtive vía API.'),
 
-('BAI11-P07-A08', 'BAI11-P07', 'Medir el rendimiento del proyecto en relación con los criterios clave. Analizar las desviaciones de los criterios clave establecidos para determinar su causa y evaluar los efectos positivos y negativos en el proyecto.', 4, 'Collabtive', 'Proporciona reportes de progreso y seguimiento de tareas, hitos y tiempo estimado vs. real.', '┌til para análisis de desempeño basado en tareas y cronograma.', 'Puede complementarse con GLPI para criterios técnicos u operacionales.'),
+('BAI11-P07-A08', 'BAI11-P07', 'Medir el rendimiento del proyecto en relación con los criterios clave. Analizar las desviaciones de los criterios clave establecidos para determinar su causa y evaluar los efectos positivos y negativos en el proyecto.', 4, 'Collabtive', 'Proporciona reportes de progreso y seguimiento de tareas, hitos y tiempo estimado vs. real.', 'Útil para análisis de desempeño basado en tareas y cronograma.', 'Puede complementarse con GLPI para criterios técnicos u operacionales.'),
 
 ('BAI11-P07-A09', 'BAI11-P07', 'Supervisar los cambios en el proyecto y revisar los criterios clave de desempeño del proyecto existentes para determinar si aún representan medidas válidas de progreso.', 4, 'GLPI', 'Permite seguimiento detallado de cambios, tareas y KPIs definidos por el usuario, junto con control de configuración.', 'Puede incorporar campos personalizados para definir criterios clave de desempeño.', 'Se integra con Grafana o herramientas BI para visualizar métricas.'),
 
@@ -1865,11 +1865,11 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO01-P01-A02', 'APO01-P01', 'Considere el entorno interno de la empresa, incluida la cultura y la filosofía de gestión, la tolerancia al riesgo, la política de seguridad y privacidad, los valores éticos, el código de conducta, la responsabilidad y los requisitos de integridad de la gestión.', 2, 'Archi', 'Puede representar estructura organizacional y valores en el modelo.', 'Modela el entorno interno y sus relaciones con TI.', '-'),
 
-('APO01-P01-A03', 'APO01-P01', 'Aplicar la cascada de objetivos de COBIT y los factores de diseño a la estrategia y el contexto empresarial para decidir las prioridades para el sistema de gestión y, por tanto, para la implementación de las prioridades de los objetivos de gestión.', 2, 'Archi', 'Permite mapear objetivos y prioridades estratégicas.', '┌til para operacionalizar la cascada de objetivos de COBIT.', '-'),
+('APO01-P01-A03', 'APO01-P01', 'Aplicar la cascada de objetivos de COBIT y los factores de diseño a la estrategia y el contexto empresarial para decidir las prioridades para el sistema de gestión y, por tanto, para la implementación de las prioridades de los objetivos de gestión.', 2, 'Archi', 'Permite mapear objetivos y prioridades estratégicas.', 'Útil para operacionalizar la cascada de objetivos de COBIT.', '-'),
 
-('APO01-P01-A04', 'APO01-P01', 'Validar las prioridades seleccionadas para la implementación de los objetivos de gestión con buenas prácticas o requisitos específicos de la industria (por ejemplo, regulaciones específicas de la industria) y con estructuras de gobernanza apropiadas.', 3, 'Eramba', 'Permite validar controles con estándares externos y regulaciones.', '┌til para verificar alineación normativa e industrial.', '-'),
+('APO01-P01-A04', 'APO01-P01', 'Validar las prioridades seleccionadas para la implementación de los objetivos de gestión con buenas prácticas o requisitos específicos de la industria (por ejemplo, regulaciones específicas de la industria) y con estructuras de gobernanza apropiadas.', 3, 'Eramba', 'Permite validar controles con estándares externos y regulaciones.', 'Útil para verificar alineación normativa e industrial.', '-'),
 
-('APO01-P02-A01', 'APO01-P02', 'Proporcionar recursos suficientes y capacitados para apoyar el proceso de comunicación.', 2, 'Znuny', 'Asigna personal a solicitudes de soporte y comunicación interna.', '┌til para gestión del personal en procesos comunicativos.', '-'),
+('APO01-P02-A01', 'APO01-P02', 'Proporcionar recursos suficientes y capacitados para apoyar el proceso de comunicación.', 2, 'Znuny', 'Asigna personal a solicitudes de soporte y comunicación interna.', 'Útil para gestión del personal en procesos comunicativos.', '-'),
 
 ('APO01-P02-A02', 'APO01-P02', 'Definir reglas básicas para la comunicación identificando las necesidades de comunicación e implementando planes basados en esas necesidades, considerando la comunicación de arriba hacia abajo, de abajo hacia arriba y horizontal.', 3, 'Znuny', 'Configurable para definir y estandarizar flujos de comunicación.', 'Puede adaptarse para gestión de requerimientos y flujos.', '-'),
 
@@ -1883,7 +1883,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO01-P03-A03', 'APO01-P03', 'Elaborar una hoja de ruta para la implementación de las prácticas y actividades de proceso faltantes. Utilizar métricas de práctica para dar seguimiento a la implementación exitosa.', 4, 'Apache Open', 'Permite crear y organizar hojas de ruta, seguimiento con cronogramas y reportes.', 'Soporta el seguimiento manual con documentos o plantillas.', '-'),
 
-('APO01-P04-A01', 'APO01-P04', 'Identificar las decisiones necesarias para el logro de los resultados empresariales y la estrategia de I&T y para la gestión y ejecución de los servicios de I&T.', 2, 'Archi', 'Permite modelar decisiones clave y cómo se relacionan con objetivos y procesos.', '┌til para representar decisiones estratégicas como nodos en el modelo.', 'Se puede coomplementar con una herramienta de documentación como open office'),
+('APO01-P04-A01', 'APO01-P04', 'Identificar las decisiones necesarias para el logro de los resultados empresariales y la estrategia de I&T y para la gestión y ejecución de los servicios de I&T.', 2, 'Archi', 'Permite modelar decisiones clave y cómo se relacionan con objetivos y procesos.', 'Útil para representar decisiones estratégicas como nodos en el modelo.', 'Se puede coomplementar con una herramienta de documentación como open office'),
 
 ('APO01-P04-A02', 'APO01-P04', 'Involucrar a las partes interesadas que son críticas para la toma de decisiones (responsables, consultadas o informadas).', 2, 'Archi', 'Puede modelar actores (stakeholders) y su relación con procesos y decisiones.', 'Ideal para diagramar relaciones RACI o similares.', 'Se puede coomplementar con una herramienta de documentación como open office'),
 
@@ -1901,11 +1901,11 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO01-P05-A01', 'APO01-P05', 'Establecer, acordar y comunicar las funciones y responsabilidades relacionadas con I&T para todo el personal de la empresa, en consonancia con las necesidades y objetivos del negocio. Definir claramente las responsabilidades y obligaciones, especialmente en lo que respecta a la toma de decisiones y las aprobaciones.', 2, 'Archi', 'Permite modelar actores, roles y funciones alineadas con los objetivos del negocio.', 'Ideal para documentar y visualizar la relación entre funciones y decisiones.', '-'),
 
-('APO01-P05-A02', 'APO01-P05', 'Considere los requisitos de continuidad del servicio empresarial y de I&T al definir roles, incluidos los requisitos de respaldo del personal y capacitación cruzada.', 2, 'Eramba', 'Tiene soporte para planes de continuidad asociados a roles.', '┌til para vincular roles con planes de respaldo.', '-'),
+('APO01-P05-A02', 'APO01-P05', 'Considere los requisitos de continuidad del servicio empresarial y de I&T al definir roles, incluidos los requisitos de respaldo del personal y capacitación cruzada.', 2, 'Eramba', 'Tiene soporte para planes de continuidad asociados a roles.', 'Útil para vincular roles con planes de respaldo.', '-'),
 
 ('APO01-P05-A03', 'APO01-P05', 'Proporcionar información al proceso de continuidad del servicio de I&T manteniendo actualizada la información de contacto y las descripciones de roles en la empresa.', 2, 'Eramba', 'Mantiene registros actualizados de responsables y contactos.', 'Vinculado con otros procesos como continuidad o revisiones.', '-'),
 
-('APO01-P05-A04', 'APO01-P05', 'Incluir requisitos específicos en las descripciones de funciones y responsabilidades con respecto al cumplimiento de las políticas y procedimientos de gestión, el código de ética y las prácticas profesionales.', 2, 'Archi', 'Permite incorporar reglas, políticas o prácticas como atributos o relaciones.', '┌til para alinear roles con marcos de cumplimiento y ética.', '-'),
+('APO01-P05-A04', 'APO01-P05', 'Incluir requisitos específicos en las descripciones de funciones y responsabilidades con respecto al cumplimiento de las políticas y procedimientos de gestión, el código de ética y las prácticas profesionales.', 2, 'Archi', 'Permite incorporar reglas, políticas o prácticas como atributos o relaciones.', 'Útil para alinear roles con marcos de cumplimiento y ética.', '-'),
 
 ('APO01-P05-A05', 'APO01-P05', 'Asegúrese de que la rendición de cuentas esté definida a través de roles y responsabilidades.', 2, 'Archi', 'Asocia roles con responsabilidades y autoridades en el modelo.', 'Es claro para representar rendición de cuentas.', '-'),
 
@@ -1961,7 +1961,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO02-P01-A04', 'APO02-P01', 'Identificar a las partes interesadas clave y obtener información sobre sus requisitos.', 2, 'Archi', 'Facilita la identificación de actores clave mediante vistas de stakeholders.', 'Muy eficaz para representar requerimientos y relaciones de los interesados.', '-'),
 
-('APO02-P02-A01', 'APO02-P02', 'Desarrollar una línea base de las capacidades y servicios empresariales y de I&T actuales. Incluir la evaluación de los servicios externos, la gobernanza de I&T y las habilidades y competencias relacionadas con I&T a nivel empresarial.', 2, 'Eramba', 'Permite documentar capacidades y servicios actuales, y realizar evaluaciones de control, riesgo y cumplimiento.', '┌til para mapear controles y madurez en gobernanza de I&T.', '-'),
+('APO02-P02-A01', 'APO02-P02', 'Desarrollar una línea base de las capacidades y servicios empresariales y de I&T actuales. Incluir la evaluación de los servicios externos, la gobernanza de I&T y las habilidades y competencias relacionadas con I&T a nivel empresarial.', 2, 'Eramba', 'Permite documentar capacidades y servicios actuales, y realizar evaluaciones de control, riesgo y cumplimiento.', 'Útil para mapear controles y madurez en gobernanza de I&T.', '-'),
 
 ('APO02-P02-A02', 'APO02-P02', 'Evaluar la madurez digital en diferentes dimensiones (p. ej., capacidad del liderazgo para aprovechar la tecnología, nivel de riesgo tecnológico aceptado, enfoque hacia la innovación, cultura y nivel de conocimiento de los usuarios). Evaluar la predisposición al cambio.', 3, 'Eramba', 'Incluye métricas y frameworks para evaluar madurez organizacional y aceptación del riesgo.', 'Ofrece evaluaciones cualitativas que pueden adaptarse a niveles de madurez digital.', '-'),
 
@@ -1969,7 +1969,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO02-P03-A02', 'APO02-P03', 'Definir objetivos y metas de I&T de alto nivel y especificar su contribución a los objetivos de la empresa.', 2, 'Archi', 'Permite definir objetivos, metas y capacidades de soporte alineadas con la estrategia.', 'Ideal para trazabilidad entre objetivos empresariales e I&T.', '-'),
 
-('APO02-P03-A03', 'APO02-P03', 'Detallar los servicios y productos de I&T necesarios para alcanzar los objetivos empresariales. Considerar las tecnologías emergentes validadas o ideas innovadoras, los estándares de referencia, las capacidades de I&T y de negocios de la competencia, los puntos de referencia comparativos de buenas prácticas y la prestación de servicios de I&T emergentes.', 3, 'Archi', 'Permite detallar catálogos de servicios y vincularlos con tecnologías emergentes y capacidades requeridas.', '┌til para planificar soluciones emergentes y capacidades.', '-'),
+('APO02-P03-A03', 'APO02-P03', 'Detallar los servicios y productos de I&T necesarios para alcanzar los objetivos empresariales. Considerar las tecnologías emergentes validadas o ideas innovadoras, los estándares de referencia, las capacidades de I&T y de negocios de la competencia, los puntos de referencia comparativos de buenas prácticas y la prestación de servicios de I&T emergentes.', 3, 'Archi', 'Permite detallar catálogos de servicios y vincularlos con tecnologías emergentes y capacidades requeridas.', 'Útil para planificar soluciones emergentes y capacidades.', '-'),
 
 ('APO02-P03-A04', 'APO02-P03', 'Determine las capacidades, metodologías y enfoques organizativos de I&T necesarios para implementar la cartera de productos y servicios de I&T definida. Considere diferentes metodologías de desarrollo (Agile, Scrum, cascada, TI bimodal) según los requisitos del negocio. Analice cómo cada una podría contribuir al logro de los objetivos de I&T.', 3, 'Archi', 'Modela escenarios con distintas metodologías (Agile, bimodal, cascada) y su efecto sobre objetivos.', 'Permite representar gráficamente cómo las metodologías apoyan la entrega de valor I&T.', '-'),
 
@@ -2009,7 +2009,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO02-P06-A04', 'APO02-P06', 'Obtener retroalimentación y actualizar el plan de comunicación y su entrega según sea necesario.', 4, 'Archi', 'Permite modelar ciclos de retroalimentación y mejora continua del plan comunicacional.', 'Muy eficaz para planificación comunicativa iterativa.', '-'),
 
-('APO03-P01-A01', 'APO03-P01', 'Identificar a las partes interesadas clave y sus inquietudes/objetivos. Definir los requisitos empresariales clave que deben abordarse, así como las perspectivas de arquitectura que deben desarrollarse para satisfacer las necesidades de las partes interesadas.', 2, 'Eramba', 'Identifica stakeholders relacionados con cumplimiento y riesgo.', '┌til en entornos regulados.', '-'),
+('APO03-P01-A01', 'APO03-P01', 'Identificar a las partes interesadas clave y sus inquietudes/objetivos. Definir los requisitos empresariales clave que deben abordarse, así como las perspectivas de arquitectura que deben desarrollarse para satisfacer las necesidades de las partes interesadas.', 2, 'Eramba', 'Identifica stakeholders relacionados con cumplimiento y riesgo.', 'Útil en entornos regulados.', '-'),
 
 ('APO03-P01-A02', 'APO03-P01', 'Identificar los objetivos empresariales y los impulsores estratégicos. Definir las limitaciones que deben abordarse, tanto a nivel de la empresa como de cada proyecto (p. ej., tiempo, cronograma, recursos, etc.).', 2, 'Eramba', 'Documenta objetivos normativos y restricciones estratégicas.', 'Se enfoca en control.', '-'),
 
@@ -2043,7 +2043,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO03-P02-A05', 'APO03-P02', 'Mantener un modelo de arquitectura de procesos como parte de las descripciones de los dominios de referencia y objetivo. Estandarizar las descripciones y la documentación de los procesos. Definir las funciones y responsabilidades de los responsables de la toma de decisiones, el propietario, los usuarios, el equipo y cualquier otra parte interesada que deba participar.', 3, 'Archi', 'Puedes documentar procesos, roles, decisiones y responsables mediante elementos estructurados.', 'Facilita la formalización de responsabilidades arquitectónicas.', '-'),
 
-('APO03-P02-A06', 'APO03-P02', 'Mantener un modelo de arquitectura de información como parte de las descripciones de los dominios de referencia y de destino, coherente con la estrategia empresarial para adquirir, almacenar y utilizar datos de manera óptima en apoyo de la toma de decisiones.', 3, 'Archi', 'Soporta la representación de datos, objetos de negocio, flujos y almacenamiento alineado a estrategia.', '┌til para representar estrategia de datos y soporte a decisiones.', '-'),
+('APO03-P02-A06', 'APO03-P02', 'Mantener un modelo de arquitectura de información como parte de las descripciones de los dominios de referencia y de destino, coherente con la estrategia empresarial para adquirir, almacenar y utilizar datos de manera óptima en apoyo de la toma de decisiones.', 3, 'Archi', 'Soporta la representación de datos, objetos de negocio, flujos y almacenamiento alineado a estrategia.', 'Útil para representar estrategia de datos y soporte a decisiones.', '-'),
 
 ('APO03-P02-A07', 'APO03-P02', 'Verificar la consistencia y precisión interna de los modelos de arquitectura. Realizar un análisis de brechas entre la línea base y el objetivo. Priorizar las brechas y definir los componentes nuevos o modificados que deben desarrollarse para la arquitectura objetivo. Resolver incompatibilidades, inconsistencias o conflictos dentro de la arquitectura objetivo.', 3, 'Archi', 'Permite comparar arquitectura base vs objetivo y realizar análisis de inconsistencias o conflictos.', 'Soporte completo para gestionar transformación estructurada.', '-'),
 
@@ -2053,7 +2053,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO03-P03-A01', 'APO03-P03', 'Determinar y confirmar los atributos clave del cambio empresarial. Considerar la cultura empresarial, su posible impacto en la implementación de la arquitectura y las capacidades de la empresa para la transición.', 3, 'Archi', 'Permite modelar capacidades, cultura organizacional y su impacto sobre la arquitectura objetivo.', 'Apto para planificación estructural de la transformación.', '-'),
 
-('APO03-P03-A02', 'APO03-P03', 'Identifique cualquier factor empresarial que pueda limitar la secuencia de implementación. Incluya una revisión de los planes estratégicos y de negocio de la empresa y de cada línea de negocio. Considere la madurez actual de la arquitectura empresarial.', 3, 'Archi', 'Permite representar restricciones, secuencias lógicas, planes estratégicos y madurez de arquitectura.', '┌til para identificar dependencias y condiciones iniciales.', '-'),
+('APO03-P03-A02', 'APO03-P03', 'Identifique cualquier factor empresarial que pueda limitar la secuencia de implementación. Incluya una revisión de los planes estratégicos y de negocio de la empresa y de cada línea de negocio. Considere la madurez actual de la arquitectura empresarial.', 3, 'Archi', 'Permite representar restricciones, secuencias lógicas, planes estratégicos y madurez de arquitectura.', 'Útil para identificar dependencias y condiciones iniciales.', '-'),
 
 ('APO03-P03-A03', 'APO03-P03', 'Revisar y consolidar los resultados del análisis de brechas entre las arquitecturas de referencia y las arquitecturas objetivo. Evaluar las implicaciones respecto a las posibles soluciones, oportunidades, interdependencias y la alineación con los programas actuales basados en I+D.', 3, 'Archi', 'Integra el análisis entre arquitectura base y objetivo, visualizando soluciones viables.', 'Aporta trazabilidad entre escenarios y decisiones.', '-'),
 
@@ -2113,19 +2113,19 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO04-P04-A01', 'APO04-P04', 'Evaluar las tecnologías identificadas, considerando aspectos como el tiempo para alcanzar la madurez, el riesgo inherente (incluidas las posibles implicaciones legales), la adecuación a la arquitectura empresarial y el potencial de valor, en línea con la estrategia empresarial y de I&T.', 2, 'GLPI', 'Puede documentar evaluaciones sobre tecnologías mediante tickets o tareas.', 'Se adapta para registrar, no para evaluar formalmente.', '-'),
 
-('APO04-P04-A02', 'APO04-P04', 'Identificar problemas que puedan necesitar resolverse o validarse a través de una iniciativa de prueba de concepto.', 3, 'GLPI', 'Se pueden registrar problemas en solicitudes o tareas, aunque sin validación técnica.', '┌til para identificar iniciativas, no para validar pruebas.', '-'),
+('APO04-P04-A02', 'APO04-P04', 'Identificar problemas que puedan necesitar resolverse o validarse a través de una iniciativa de prueba de concepto.', 3, 'GLPI', 'Se pueden registrar problemas en solicitudes o tareas, aunque sin validación técnica.', 'Útil para identificar iniciativas, no para validar pruebas.', '-'),
 
 ('APO04-P04-A03', 'APO04-P04', 'Determinar el alcance de la iniciativa de prueba de concepto, incluidos los resultados deseados, el presupuesto requerido, los plazos y las responsabilidades.', 3, 'GLPI', 'Puede detallar responsabilidades y plazos en planes de tareas.', 'Aporta estructura general, no evaluativa.', 'GLPI Projects'),
 
 ('APO04-P04-A04', 'APO04-P04', 'Obtener la aprobación para la iniciativa de prueba de concepto.', 3, 'GLPI', 'Puede usarse para registrar ideas como tickets o tareas.', 'Estructura básica para canalizar ideas.', '-'),
 
-('APO04-P04-A05', 'APO04-P04', 'Realizar pruebas de concepto para evaluar tecnologías emergentes u otras ideas innovadoras. Identificar problemas y determinar si se debe considerar la implementación o el despliegue, según la viabilidad y el posible retorno de la inversión (ROI).', 3, 'Apache Dubbo', 'Permite ejecutar pruebas de integración de tecnologías en ambientes de desarrollo.', '┌til para validación técnica, no para retorno de inversión.', '-'),
+('APO04-P04-A05', 'APO04-P04', 'Realizar pruebas de concepto para evaluar tecnologías emergentes u otras ideas innovadoras. Identificar problemas y determinar si se debe considerar la implementación o el despliegue, según la viabilidad y el posible retorno de la inversión (ROI).', 3, 'Apache Dubbo', 'Permite ejecutar pruebas de integración de tecnologías en ambientes de desarrollo.', 'Útil para validación técnica, no para retorno de inversión.', '-'),
 
 ('APO04-P05-A01', 'APO04-P05', 'Documentar los resultados de la prueba de concepto, incluyendo orientación y recomendaciones sobre tendencias y programas de innovación.', 3, 'GLPI', 'Permite documentar resultados como tickets o informes en proyectos.', 'No es específico de innovación pero puede adaptarse.', '-'),
 
 ('APO04-P05-A02', 'APO04-P05', 'Comunicar oportunidades de innovación viables en la estrategia de I&T y en los procesos de arquitectura empresarial.', 3, NULL, '-', 'Requiere herramienta de comunicacion', '-'),
 
-('APO04-P05-A03', 'APO04-P05', 'Analizar y comunicar las razones de las iniciativas de prueba de concepto rechazadas.', 3, 'GLPI', 'Se pueden registrar motivos de rechazo en los tickets cerrados.', '┌til si se estructura correctamente.', '-'),
+('APO04-P05-A03', 'APO04-P05', 'Analizar y comunicar las razones de las iniciativas de prueba de concepto rechazadas.', 3, 'GLPI', 'Se pueden registrar motivos de rechazo en los tickets cerrados.', 'Útil si se estructura correctamente.', '-'),
 
 ('APO04-P05-A04', 'APO04-P05', 'Dar seguimiento a las iniciativas de prueba de concepto para medir la inversión real.', 4, 'GLPI', 'Puede usarse para hacer seguimiento de recursos invertidos vía tareas.', 'Limitado, no financiero formal.', '-'),
 
@@ -2133,7 +2133,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO04-P06-A02', 'APO04-P06', 'Asegurar que las iniciativas de innovación se alineen con la estrategia empresarial y de I&T. Supervisar la alineación continuamente. Ajustar el plan de innovación, si es necesario.', 3, 'Collabtive', 'Puede vincular tareas con objetivos, aunque sin trazabilidad estratégica.', 'Puede modelarse de forma limitada.', '-'),
 
-('APO04-P06-A03', 'APO04-P06', 'Evaluar las nuevas tecnologías o innovaciones de TI implementadas como parte de la estrategia de TI y el desarrollo de la arquitectura empresarial. Evaluar el nivel de adopción durante la gestión de programas de iniciativas.', 4, 'Issabel', 'Puede monitorear uso de nuevas tecnologías implementadas en call center.', '┌til para analizar adopción operativa.', '-'),
+('APO04-P06-A03', 'APO04-P06', 'Evaluar las nuevas tecnologías o innovaciones de TI implementadas como parte de la estrategia de TI y el desarrollo de la arquitectura empresarial. Evaluar el nivel de adopción durante la gestión de programas de iniciativas.', 4, 'Issabel', 'Puede monitorear uso de nuevas tecnologías implementadas en call center.', 'Útil para analizar adopción operativa.', '-'),
 
 ('APO04-P06-A04', 'APO04-P06', 'Identificar y evaluar el valor potencial de la innovación.', 4, 'Apache Open', 'Herramienta documental, puede servir para reportar los hallazgos', 'Debido a la caracteristica de la actividad, no existe una herramienta que pueda cumplirla, es solo una solución documental', '-'),
 
@@ -2197,11 +2197,11 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO06-P02-A02', 'APO06-P02', 'Asignar recursos empresariales y de TI (incluidos proveedores de servicios externos) dentro de las asignaciones presupuestarias generales para programas, servicios y activos de TI. Considerar las opciones para comprar o desarrollar activos y servicios capitalizados frente a activos y servicios utilizados externamente con un sistema de pago por uso.', 2, 'JFire', 'Administra recursos humanos y financieros, internos y externos', 'Admite reglas de asignación complejas', '-'),
 
-('APO06-P02-A03', 'APO06-P02', 'Establecer un procedimiento para comunicar las decisiones presupuestarias y revisarlas con los responsables del presupuesto de las unidades de negocio.', 2, 'GLPI', 'Permite flujos de trabajo, notificaciones automáticas y comunicación con responsables', '┌til si ya se usa para soporte o catálogo de servicios', '-'),
+('APO06-P02-A03', 'APO06-P02', 'Establecer un procedimiento para comunicar las decisiones presupuestarias y revisarlas con los responsables del presupuesto de las unidades de negocio.', 2, 'GLPI', 'Permite flujos de trabajo, notificaciones automáticas y comunicación con responsables', 'Útil si ya se usa para soporte o catálogo de servicios', '-'),
 
 ('APO06-P02-A04', 'APO06-P02', 'Identificar, comunicar y resolver los impactos significativos de las decisiones presupuestarias en los análisis de negocio, las carteras y los planes estratégicos. Por ejemplo, esto puede ocurrir cuando los presupuestos requieren una revisión debido a cambios en las circunstancias empresariales o cuando no son suficientes para respaldar los objetivos estratégicos o los objetivos del análisis de negocio.', 2, 'JFire', 'Visualiza y ajusta el presupuesto según cambios o riesgos estratégicos', 'Facilita simulaciones de impacto', '-'),
 
-('APO06-P02-A05', 'APO06-P02', 'Obtener la ratificación del comité ejecutivo sobre las implicaciones presupuestarias de I&T que afecten negativamente los planes estratégicos o tácticos de la entidad. Sugerir medidas para solucionar estos impactos.', 3, 'Collabtive', 'Permite documentar decisiones de alto nivel y seguimiento de acciones aprobadas', '┌til para trazabilidad de acuerdos y revisión ejecutiva', '-'),
+('APO06-P02-A05', 'APO06-P02', 'Obtener la ratificación del comité ejecutivo sobre las implicaciones presupuestarias de I&T que afecten negativamente los planes estratégicos o tácticos de la entidad. Sugerir medidas para solucionar estos impactos.', 3, 'Collabtive', 'Permite documentar decisiones de alto nivel y seguimiento de acciones aprobadas', 'Útil para trazabilidad de acuerdos y revisión ejecutiva', '-'),
 
 ('APO06-P03-A01', 'APO06-P03', 'Implementar un presupuesto formal de I&T, que incluya todos los costos de I&T previstos para los programas, servicios y activos habilitados por I&T.', 2, 'Apache OFBiz', 'Posee funciones de planificación y ejecución presupuestaria, adaptable al entorno I&T', 'Ideal para gestionar presupuestos formales completos', '-'),
 
@@ -2209,7 +2209,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO06-P03-A03', 'APO06-P03', 'Documentar las razones para justificar las contingencias y revisarlas periódicamente.', 2, 'Apache OFBiz', 'Permite registrar comentarios y justificaciones asociadas a partidas presupuestarias', 'Las revisiones se pueden auditar y versionar', '-'),
 
-('APO06-P03-A04', 'APO06-P03', 'Instruir a los propietarios de procesos, servicios y programas, así como a los gerentes de proyectos y activos, para que planifiquen presupuestos.', 2, 'Collabtive', 'Facilita comunicación de responsabilidades y planificación colaborativa', '┌til para distribuir tareas presupuestarias', '-'),
+('APO06-P03-A04', 'APO06-P03', 'Instruir a los propietarios de procesos, servicios y programas, así como a los gerentes de proyectos y activos, para que planifiquen presupuestos.', 2, 'Collabtive', 'Facilita comunicación de responsabilidades y planificación colaborativa', 'Útil para distribuir tareas presupuestarias', '-'),
 
 ('APO06-P03-A05', 'APO06-P03', 'Revisar los planes presupuestarios y tomar decisiones sobre las asignaciones presupuestarias. Elaborar y ajustar el presupuesto según las necesidades cambiantes de la empresa y las consideraciones financieras.', 3, 'Apache OFBiz', 'Soporta revisiones de presupuestos y escenarios ajustables con reestimaciones', 'Puede ajustarse al cambio estratégico o financiero', '-'),
 
@@ -2225,7 +2225,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO06-P04-A03', 'APO06-P04', 'Diseñe el modelo de costos con la transparencia necesaria para que los usuarios puedan identificar su uso y cargos reales mediante categorías y factores de costo que les resulten relevantes (p. ej., costo por llamada al servicio de asistencia, costo por licencia de software). Esto permitirá una mejor previsibilidad de los costos de TI y una utilización eficiente y eficaz de los recursos de TI. Analice los factores de costo (tiempo dedicado a cada actividad, gastos, proporción de costos fijos y variables, etc.). Determine la diferenciación adecuada (p. ej., diferentes categorías de usuarios con diferentes ponderaciones) y utilice aproximaciones o promedios de costos cuando los costos reales sean muy variables.', 3, 'Apache OFBiz', 'Permite desglose de costos por categoría, actividad, tiempo, etc.', 'Soporta diferenciación de categorías de usuarios', '-'),
 
-('APO06-P04-A04', 'APO06-P04', 'Explicar los principios y resultados del modelo de costos a las principales partes interesadas. Obtener su opinión para perfeccionar el modelo y lograr un modelo transparente e integral.', 3, 'Collabtive', 'Facilita comunicación, documentación de decisiones y colaboración', '┌til para validaciones internas con partes interesadas', '-'),
+('APO06-P04-A04', 'APO06-P04', 'Explicar los principios y resultados del modelo de costos a las principales partes interesadas. Obtener su opinión para perfeccionar el modelo y lograr un modelo transparente e integral.', 3, 'Collabtive', 'Facilita comunicación, documentación de decisiones y colaboración', 'Útil para validaciones internas con partes interesadas', '-'),
 
 ('APO06-P04-A05', 'APO06-P04', 'Obtener la aprobación de las partes interesadas clave y comunicar el modelo de costos de I&T a la gerencia de los departamentos usuarios.', 3, 'Collabtive', 'Permite trazabilidad de aprobaciones y comunicación formal con usuarios clave', '-', '-'),
 
@@ -2271,7 +2271,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO07-P03-A04', 'APO07-P03', 'Proporcionar acceso a repositorios de conocimiento para apoyar el desarrollo de habilidades y competencias.', 3, 'Moodle', 'Facilita el acceso y la consulta de documentos clave, manuales y módulos de aprendizaje.', 'Compatible con múltiples formatos multimedia.', '-'),
 
-('APO07-P03-A05', 'APO07-P03', 'Desarrollar e impartir programas de capacitación basados en los requisitos organizacionales y de procesos, incluidos los requisitos de conocimiento empresarial, control interno, conducta ética, seguridad y privacidad.', 3, 'Moodle', 'Soporta el desarrollo, asignación y seguimiento de programas de formación ética, técnica y legal.', '┌til para cumplimiento normativo y habilidades blandas.', '-'),
+('APO07-P03-A05', 'APO07-P03', 'Desarrollar e impartir programas de capacitación basados en los requisitos organizacionales y de procesos, incluidos los requisitos de conocimiento empresarial, control interno, conducta ética, seguridad y privacidad.', 3, 'Moodle', 'Soporta el desarrollo, asignación y seguimiento de programas de formación ética, técnica y legal.', 'Útil para cumplimiento normativo y habilidades blandas.', '-'),
 
 ('APO07-P03-A06', 'APO07-P03', 'Realizar revisiones periódicas para evaluar la evolución de las habilidades y competencias de los recursos internos y externos. Revisar la planificación de la sucesión.', 4, 'GLPI', 'Ofrece trazabilidad en la relación entre competencias del personal y su desempeño dentro de servicios y proyectos.', 'Se puede complementar con informes desde Moodle.', '-'),
 
@@ -2279,7 +2279,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO07-P04-A02', 'APO07-P04', 'Establecer objetivos individuales alineados con los objetivos relevantes de I&T y de la empresa. Fundamentar los objetivos en objetivos específicos, medibles, alcanzables, relevantes y con plazos definidos (SMART) que reflejen las competencias clave, los valores de la empresa y las habilidades requeridas para el/los puesto(s).', 2, 'JFire', 'Se pueden configurar objetivos individuales dentro del módulo de desempeño del ERP con criterios SMART.', 'Adecuado para reflejar competencias y valores corporativos.', '-'),
 
-('APO07-P04-A03', 'APO07-P04', 'Proporcionar retroalimentación oportuna sobre el desempeño en relación con los objetivos del individuo.', 2, 'Znuny', 'Permite crear y gestionar tickets personalizados de retroalimentación y seguimiento por supervisor o líder.', '┌til para retroalimentación estructurada.', '-'),
+('APO07-P04-A03', 'APO07-P04', 'Proporcionar retroalimentación oportuna sobre el desempeño en relación con los objetivos del individuo.', 2, 'Znuny', 'Permite crear y gestionar tickets personalizados de retroalimentación y seguimiento por supervisor o líder.', 'Útil para retroalimentación estructurada.', '-'),
 
 ('APO07-P04-A04', 'APO07-P04', 'Proporcionar instrucciones específicas para el uso y almacenamiento de la información personal en el proceso de evaluación, en cumplimiento de la legislación aplicable en materia de datos personales y laboral.', 2, 'Eramba', 'Plataforma especializada en gestión de riesgos y cumplimiento; controla uso de datos personales conforme a normativas.', 'Cumple RGPD/Ley de Protección de Datos.', '-'),
 
@@ -2375,7 +2375,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO09-P02-A03', 'APO09-P02', 'Informar a la gestión de relaciones comerciales sobre cualquier actualización de los catálogos de servicios.', 3, 'GLPI', 'Se puede informar y notificar automáticamente a la gestión de relaciones vía correos y reglas.', 'Muy útil si se define protocolo de actualización.', '-'),
 
-('APO09-P03-A01', 'APO09-P03', 'Analice los requisitos para los acuerdos de servicio nuevos o modificados recibidos de la gestión de relaciones comerciales para garantizar su cumplimiento. Considere aspectos como los tiempos de servicio, la disponibilidad, el rendimiento, la capacidad, la seguridad, la privacidad, la continuidad, el cumplimiento normativo, la usabilidad, las limitaciones de la demanda y la calidad de los datos.', 2, 'GLPI', 'Permite documentar y validar requisitos funcionales, técnicos y de soporte en solicitudes de servicio.', '┌til para validar criterios de servicio antes de acuerdos.', '-'),
+('APO09-P03-A01', 'APO09-P03', 'Analice los requisitos para los acuerdos de servicio nuevos o modificados recibidos de la gestión de relaciones comerciales para garantizar su cumplimiento. Considere aspectos como los tiempos de servicio, la disponibilidad, el rendimiento, la capacidad, la seguridad, la privacidad, la continuidad, el cumplimiento normativo, la usabilidad, las limitaciones de la demanda y la calidad de los datos.', 2, 'GLPI', 'Permite documentar y validar requisitos funcionales, técnicos y de soporte en solicitudes de servicio.', 'Útil para validar criterios de servicio antes de acuerdos.', '-'),
 
 ('APO09-P03-A02', 'APO09-P03', 'Redactar acuerdos de servicio al cliente basados en los servicios, paquetes de servicios y opciones de niveles de servicio incluidos en los catálogos de servicios pertinentes.', 2, 'GLPI', 'Facilita la redacción de acuerdos basados en servicios estandarizados.', 'Compatible con enfoques ITIL.', '-'),
 
@@ -2507,7 +2507,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO11-P05-A04', 'APO11-P05', 'Proporcionar a los empleados capacitación en los métodos y herramientas de mejora continua.', 3, 'GLPI', 'Se pueden documentar programas de capacitación, registrar asistencia y compartir materiales a través de formularios y la base de conocimientos.', 'Requiere configuración personalizada para temas formativos.', 'Integración con GSuite o LMS externos para seguimiento más completo.'),
 
-('APO11-P05-A05', 'APO11-P05', 'Compare los resultados de las revisiones de calidad con datos históricos internos, pautas de la industria, estándares y datos de tipos similares de empresas.', 4, 'Eramba', 'Ofrece seguimiento de revisiones internas y comparación con estándares (ISO, NIST, etc.). Permite importar controles y configurar revisiones periódicas.', '┌til para cumplimiento normativo y benchmarking interno.', 'Exporta a Excel y se puede enlazar con herramientas de BI.'),
+('APO11-P05-A05', 'APO11-P05', 'Compare los resultados de las revisiones de calidad con datos históricos internos, pautas de la industria, estándares y datos de tipos similares de empresas.', 4, 'Eramba', 'Ofrece seguimiento de revisiones internas y comparación con estándares (ISO, NIST, etc.). Permite importar controles y configurar revisiones periódicas.', 'Útil para cumplimiento normativo y benchmarking interno.', 'Exporta a Excel y se puede enlazar con herramientas de BI.'),
 
 ('APO12-P01-A01', 'APO12-P01', 'Establecer y mantener un método para la recopilación, clasificación y análisis de datos relacionados con el riesgo de I&T.', 2, 'Eramba', 'Proporciona métodos estructurados para clasificar y analizar riesgos mediante taxonomías personalizables, plantillas de evaluación, scoring y mapeo de controles.', 'Incluye gestión completa del ciclo de vida del riesgo.', 'Se integra con herramientas de monitoreo o ticketing como Zabbix o GLPI.'),
 
@@ -2713,7 +2713,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO14-P08-A01', 'APO14-P08', 'Mapear y alinear los requisitos de los consumidores y productores de datos.', 2, 'Archi', 'Permite modelar arquitecturas empresariales, incluidos productores/consumidores de datos, flujos y componentes. Utiliza el estándar ArchiMate.', 'Proporciona trazabilidad visual y lógica entre productores y consumidores.', 'Se puede complementar con Apache Hive para seguimiento de fuentes técnicas.'),
 
-('APO14-P08-A02', 'APO14-P08', 'Defina las asignaciones de procesos de negocio a datos. Manténgalas y revíselas periódicamente para garantizar su cumplimiento.', 3, 'Archi', 'Facilita el modelado de asignaciones entre procesos y datos (por ejemplo, qué datos soportan qué procesos) y permite revisiones periódicas.', '┌til para mantener alineación entre gobernanza de procesos y datos.', 'Compatible con otros modelos BPMN o de arquitectura.'),
+('APO14-P08-A02', 'APO14-P08', 'Defina las asignaciones de procesos de negocio a datos. Manténgalas y revíselas periódicamente para garantizar su cumplimiento.', 3, 'Archi', 'Facilita el modelado de asignaciones entre procesos y datos (por ejemplo, qué datos soportan qué procesos) y permite revisiones periódicas.', 'Útil para mantener alineación entre gobernanza de procesos y datos.', 'Compatible con otros modelos BPMN o de arquitectura.'),
 
 ('APO14-P08-A03', 'APO14-P08', 'Seguir un proceso definido para acuerdos de colaboración con respecto a los datos compartidos y el uso de datos dentro de los procesos de negocio.', 3, 'Alfresco', 'Soporta gestión documental de acuerdos, firmas, flujos de aprobación y revisiones. Ideal para almacenar y mantener acuerdos de uso de datos.', 'Asegura trazabilidad formal y control de acceso.', 'Integrable con GLPI o plataformas BPM para seguimiento.'),
 
@@ -2735,7 +2735,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('APO14-P10-A02', 'APO14-P10', 'Definir los requisitos para el almacenamiento local y externo de los datos de respaldo, teniendo en cuenta el volumen, la capacidad y el período de retención, en consonancia con los requisitos del negocio.', 2, 'Alfresco', 'Alfresco permite definir políticas de almacenamiento, archivado y retención, gestionando múltiples repositorios y almacenamientos (on-premise o cloud).', 'Permite separación de contenidos por criticidad y aplicación de reglas de retención.', 'Integración con sistemas de almacenamiento cloud y bases de datos para respaldo de documentos críticos.'),
 
-('APO14-P10-A03', 'APO14-P10', 'Establezca un cronograma de pruebas para los datos de respaldo. Asegúrese de que los datos se puedan restaurar correctamente sin afectar drásticamente el negocio.', 2, 'Issabel', 'Issabel permite restaurar configuraciones completas en entornos controlados. Las pruebas de restauración pueden realizarse manual o automáticamente sin afectar el entorno productivo.', '┌til en validación de planes de contingencia y pruebas de recuperación.', 'Complementable con GLPI para registrar cronogramas y evidencias de las pruebas.'),
+('APO14-P10-A03', 'APO14-P10', 'Establezca un cronograma de pruebas para los datos de respaldo. Asegúrese de que los datos se puedan restaurar correctamente sin afectar drásticamente el negocio.', 2, 'Issabel', 'Issabel permite restaurar configuraciones completas en entornos controlados. Las pruebas de restauración pueden realizarse manual o automáticamente sin afectar el entorno productivo.', 'Útil en validación de planes de contingencia y pruebas de recuperación.', 'Complementable con GLPI para registrar cronogramas y evidencias de las pruebas.'),
 
 ('MEA01-P01-A01', 'MEA01-P01', 'Identificar a las partes interesadas (por ejemplo, dirección, propietarios de procesos y usuarios).', 2, 'Eramba', 'Soporta gestión estructurada de partes interesadas con roles definidos.', 'Muy sólido para entornos de cumplimiento. Permite clasificación y trazabilidad de interesados.', '-'),
 
@@ -2797,7 +2797,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('MEA02-P01-A03', 'MEA02-P01', 'Realizar actividades de monitoreo y evaluación del control interno con base en las normas de gobernanza organizacional y los marcos y prácticas aceptados por la industria. También incluirá el monitoreo y la evaluación de la eficiencia y eficacia de las actividades de supervisión gerencial.', 3, 'GLPI', 'Se pueden registrar hallazgos o tareas, pero no hay alineación nativa con marcos de control reconocidos.', 'Necesita pluggins para completar la actividad. Puede servir como soporte documental, pero necesita una guía externa.', 'Formcreator, changes'),
 
-('MEA02-P01-A04', 'MEA02-P01', 'Garantizar que las excepciones de control se informen, se les dé seguimiento y se analicen con prontitud, y que se prioricen e implementen las acciones correctivas apropiadas de acuerdo con el perfil de gestión de riesgos (por ejemplo, clasificar ciertas excepciones como un riesgo clave y otras como un riesgo no clave).', 3, 'GLPI', 'Puede registrar excepciones, asignar responsables y hacer seguimiento.', '┌til para respuesta táctica. Requiere clasificación manual de riesgos.', 'Changes, Notifications'),
+('MEA02-P01-A04', 'MEA02-P01', 'Garantizar que las excepciones de control se informen, se les dé seguimiento y se analicen con prontitud, y que se prioricen e implementen las acciones correctivas apropiadas de acuerdo con el perfil de gestión de riesgos (por ejemplo, clasificar ciertas excepciones como un riesgo clave y otras como un riesgo no clave).', 3, 'GLPI', 'Puede registrar excepciones, asignar responsables y hacer seguimiento.', 'Útil para respuesta táctica. Requiere clasificación manual de riesgos.', 'Changes, Notifications'),
 
 ('MEA02-P01-A05', 'MEA02-P01', 'Considere evaluaciones independientes del sistema de control interno (por ejemplo, por auditoría interna o pares).', 3, 'GLPI', 'Debido a la naturaleza externa de esta actividad, no se espera que una herramienta ejecute directamente la evaluación independiente.', 'Herramientas como GLPI, si están adecuadamente configuradas, pueden facilitar la gestión, documentación y seguimiento de estas evaluaciones, permitiendo que los actores externos accedan a información relevante, registros históricos y resultados de desempeño para emitir sus juicios.', '-'),
 
@@ -2807,7 +2807,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('MEA02-P02-A01', 'MEA02-P02', 'Comprender y priorizar el riesgo para los objetivos organizacionales.', 3, 'Open Source Risk Engine', 'Permite modelar exposición al riesgo financiero y priorizar por impacto en objetivos estratégicos.', 'Altamente útil en organizaciones financieras. Limitado fuera de ese dominio.', '-'),
 
-('MEA02-P02-A02', 'MEA02-P02', 'Identificar los controles clave y desarrollar una estrategia adecuada para validar los controles.', 3, 'GLPI', 'Se puede documentar qué acciones se consideran controles y hacer seguimiento a su ejecución, pero no se valida su efectividad automáticamente.', '┌til si se define un flujo manual. No automatiza validación ni mide eficacia.', 'Formcreator, Changes'),
+('MEA02-P02-A02', 'MEA02-P02', 'Identificar los controles clave y desarrollar una estrategia adecuada para validar los controles.', 3, 'GLPI', 'Se puede documentar qué acciones se consideran controles y hacer seguimiento a su ejecución, pero no se valida su efectividad automáticamente.', 'Útil si se define un flujo manual. No automatiza validación ni mide eficacia.', 'Formcreator, Changes'),
 
 ('MEA02-P02-A03', 'MEA02-P02', 'Identificar información que indique si el entorno de control interno está funcionando eficazmente.', 3, 'Open Source Risk Engine', 'Puede simular múltiples escenarios y su efecto en la estructura de riesgo, lo cual es evidencia de la efectividad de medidas.', 'Enfocado en modelos cuantitativos. No evalúa controles administrativos.', '-'),
 
@@ -2857,7 +2857,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('MEA03-P02-A01', 'MEA03-P02', 'Revisar y ajustar periódicamente las políticas, principios, normas, procedimientos y metodologías para garantizar su eficacia, garantizando el cumplimiento necesario y abordando el riesgo empresarial. Recurrir a expertos internos y externos, según sea necesario.', 3, 'GLPI', 'Permite asignar tareas de revisión, documentar versiones y responsables, e integrar a asesores externos vía gestión de proveedores.', 'Puede planificarse revisión periódica por roles.', '-'),
 
-('MEA03-P02-A02', 'MEA03-P02', 'Comunicar los requisitos nuevos y modificados a todo el personal relevante.', 3, 'GLPI', 'Puede enviar notificaciones automáticas y gestionar tareas dirigidas por perfil o departamento.', '┌til para trazabilidad de entregas y cambios. se le peude agregar Plugin: Notifications (para ampliar los métodos de comunicación)', 'Plugin Notifications'),
+('MEA03-P02-A02', 'MEA03-P02', 'Comunicar los requisitos nuevos y modificados a todo el personal relevante.', 3, 'GLPI', 'Puede enviar notificaciones automáticas y gestionar tareas dirigidas por perfil o departamento.', 'Útil para trazabilidad de entregas y cambios. se le peude agregar Plugin: Notifications (para ampliar los métodos de comunicación)', 'Plugin Notifications'),
 
 ('MEA03-P03-A01', 'MEA03-P03', 'Evaluar periódicamente las políticas, estándares, procedimientos y metodologías organizacionales en todas las funciones de la empresa para asegurar el cumplimiento de los requisitos legales y reglamentarios pertinentes en relación con el procesamiento de la información.', 3, 'GLPI', 'Se pueden registrar evaluaciones en formularios, tareas y auditorías periódicas.', 'Soporte adecuado con uso disciplinado del sistema.', 'Plugin: Form Creator'),
 
@@ -2987,7 +2987,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('EDM01-P03-A01', 'EDM01-P03', 'Evaluar la eficacia y el desempeño de aquellas partes interesadas a quienes se les ha delegado responsabilidad y autoridad para la gobernanza de la I&T empresarial.', 3, 'Apache Open', 'Permite registrar evaluaciones de desempeño delegadas.', 'Solo apoya la documentación y análisis manual.', '-'),
 
-('EDM01-P03-A02', 'EDM01-P03', 'Evaluar periódicamente si los mecanismos acordados de gobernanza de I&T (estructuras, principios, procesos, etc.) están establecidos y funcionan eficazmente.', 4, 'Archi', 'Se puede modelar si los componentes de gobierno existen.', '┌til para validación estructural desde lo visual.', '-'),
+('EDM01-P03-A02', 'EDM01-P03', 'Evaluar periódicamente si los mecanismos acordados de gobernanza de I&T (estructuras, principios, procesos, etc.) están establecidos y funcionan eficazmente.', 4, 'Archi', 'Se puede modelar si los componentes de gobierno existen.', 'Útil para validación estructural desde lo visual.', '-'),
 
 ('EDM01-P03-A03', 'EDM01-P03', 'Evaluar la eficacia del diseño de gobernanza e identificar acciones para rectificar cualquier desviación encontrada.', 4, 'Apache Open', 'Puede registrar los resultados de análisis y plan de acción.', 'Apoya el seguimiento y corrección documental.', '-'),
 
@@ -2997,7 +2997,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('EDM01-P03-A06', 'EDM01-P03', 'Supervisar los mecanismos regulares y rutinarios para garantizar que el uso de I&T cumple con las obligaciones pertinentes (regulatorias, legislativas, de derecho consuetudinario, contractuales), estándares y directrices.', 4, 'Apache Open', 'Permite hacer checklists, reportes de cumplimiento.', 'Apoyo documental; no realiza seguimiento automático.', '-'),
 
-('EDM02-P01-A01', 'EDM02-P01', 'Crear y mantener carteras de programas de inversión habilitados para I&T, servicios de TI y activos de TI, que formen la base del presupuesto de TI actual y respalden los planes tácticos y estratégicos de I&T.', 2, 'Archi', 'Permite modelar carteras, servicios, activos y planes estratégicos de I&T.', '┌til para visualizar la alineación entre inversiones y arquitectura empresarial.', '-'),
+('EDM02-P01-A01', 'EDM02-P01', 'Crear y mantener carteras de programas de inversión habilitados para I&T, servicios de TI y activos de TI, que formen la base del presupuesto de TI actual y respalden los planes tácticos y estratégicos de I&T.', 2, 'Archi', 'Permite modelar carteras, servicios, activos y planes estratégicos de I&T.', 'Útil para visualizar la alineación entre inversiones y arquitectura empresarial.', '-'),
 
 ('EDM02-P01-A02', 'EDM02-P01', 'Obtener un entendimiento común entre TI y las demás funciones del negocio sobre las oportunidades potenciales para que TI habilite y contribuya a la estrategia empresarial.', 2, 'Archi', 'Facilita la representación de relaciones entre funciones TI y negocio.', 'Sirve para generar entendimiento común entre dominios a nivel visual.', '-'),
 
@@ -3007,17 +3007,17 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('EDM02-P01-A05', 'EDM02-P01', 'Definir una combinación de inversiones que logre el equilibrio adecuado entre varias dimensiones, incluido un equilibrio apropiado entre rendimientos a corto y largo plazo, beneficios financieros y no financieros e inversiones de alto y bajo riesgo.', 3, 'Open Source Risk Engine', 'Calcula combinaciones de riesgo-retorno entre inversiones.', 'Ideal para evaluar portafolio balanceado (si se adapta a TI).', '-'),
 
-('EDM02-P02-A01', 'EDM02-P02', 'Comprender los requisitos de las partes interesadas; los problemas estratégicos de I&T, como la dependencia de I&T; y los conocimientos y capacidades tecnológicas relacionados con la importancia real y potencial de I&T para la estrategia de la empresa.', 2, 'Archi', 'Permite modelar relaciones entre I&T, capacidades, estrategia y partes interesadas.', '┌til para visualizar dependencias estratégicas entre negocio y TI.', '-'),
+('EDM02-P02-A01', 'EDM02-P02', 'Comprender los requisitos de las partes interesadas; los problemas estratégicos de I&T, como la dependencia de I&T; y los conocimientos y capacidades tecnológicas relacionados con la importancia real y potencial de I&T para la estrategia de la empresa.', 2, 'Archi', 'Permite modelar relaciones entre I&T, capacidades, estrategia y partes interesadas.', 'Útil para visualizar dependencias estratégicas entre negocio y TI.', '-'),
 
 ('EDM02-P02-A02', 'EDM02-P02', 'Comprender los elementos clave de gobernanza necesarios para la entrega confiable, segura y rentable de valor óptimo a partir del uso de servicios, activos y recursos de I&T existentes y nuevos.', 3, 'Archi', 'Modela elementos de gobernanza vinculados a recursos de I&T.', 'Sirve para mapear elementos clave que habilitan valor.', '-'),
 
 ('EDM02-P02-A03', 'EDM02-P02', 'Comprender y discutir periódicamente las oportunidades que podrían surgir para la empresa a partir de los cambios posibilitados por las tecnologías actuales, nuevas o emergentes, y optimizar el valor creado a partir de esas oportunidades.', 3, 'Archi', 'Facilita la exploración visual de nuevos escenarios tecnológicos y su impacto.', 'Soporta análisis de impacto de nuevas tecnologías con base en arquitectura.', '-'),
 
-('EDM02-P02-A04', 'EDM02-P02', 'Comprender qué constituye valor para la empresa y considerar qué tan bien se comunica, se entiende y se aplica en todos los procesos de la empresa.', 3, 'Archi', 'Archi permite modelar el negocio y TI con ArchiMate, facilitando la representación de cómo se crea y comunica valor en la organización.', '┌til para comunicar visualmente cómo se genera y gestiona el valor.', '-'),
+('EDM02-P02-A04', 'EDM02-P02', 'Comprender qué constituye valor para la empresa y considerar qué tan bien se comunica, se entiende y se aplica en todos los procesos de la empresa.', 3, 'Archi', 'Archi permite modelar el negocio y TI con ArchiMate, facilitando la representación de cómo se crea y comunica valor en la organización.', 'Útil para comunicar visualmente cómo se genera y gestiona el valor.', '-'),
 
 ('EDM02-P02-A05', 'EDM02-P02', 'Evaluar la eficacia con la que las estrategias empresariales y de I&T se han integrado y alineado dentro de la empresa y con los objetivos empresariales para generar valor.', 4, 'Archi', 'Archi facilita el análisis de alineación estratégica a través de modelos que integran objetivos, capacidades de TI y metas organizacionales.', 'Permite visualizar brechas y oportunidades en la integración.', '-'),
 
-('EDM02-P02-A06', 'EDM02-P02', 'Comprender y considerar cuán efectivos son los roles, responsabilidades, rendición de cuentas y órganos de toma de decisiones actuales para garantizar la creación de valor a partir de inversiones, servicios y activos habilitados por I&T.', 4, 'Collabtive', 'Collabtive permite documentar, asignar y rastrear roles y responsabilidades dentro de iniciativas y servicios habilitados por I&T.', '┌til para seguimiento organizacional y trazabilidad de decisiones.', '-'),
+('EDM02-P02-A06', 'EDM02-P02', 'Comprender y considerar cuán efectivos son los roles, responsabilidades, rendición de cuentas y órganos de toma de decisiones actuales para garantizar la creación de valor a partir de inversiones, servicios y activos habilitados por I&T.', 4, 'Collabtive', 'Collabtive permite documentar, asignar y rastrear roles y responsabilidades dentro de iniciativas y servicios habilitados por I&T.', 'Útil para seguimiento organizacional y trazabilidad de decisiones.', '-'),
 
 ('EDM02-P02-A07', 'EDM02-P02', 'Considere qué tan bien se alinea la gestión de inversiones, servicios y activos habilitados por I&T con la gestión del valor empresarial y las prácticas de gestión financiera.', 4, 'Open Source Risk Engine', 'Permite analizar activos desde una perspectiva financiera, simulando riesgos, rendimiento y costo-beneficio.', 'Se requiere conocimiento financiero/técnico para su correcta configuración.', '-'),
 
@@ -3029,7 +3029,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('EDM02-P03-A03', 'EDM02-P03', 'Dirigir a la gerencia para que considere posibles usos innovadores de I&T que permitan a la empresa responder a nuevas oportunidades o desafíos, emprender nuevos negocios, aumentar la competitividad o mejorar los procesos.', 3, 'Archi', 'Archi permite mapear nuevas iniciativas tecnológicas e innovaciones alineadas con oportunidades de negocio.', 'Es clave para representar visualmente ideas transformadoras.', '-'),
 
-('EDM02-P03-A04', 'EDM02-P03', 'Dirigir cualquier cambio necesario en la asignación de responsabilidades y rendición de cuentas para ejecutar la cartera de inversiones y entregar valor a partir de los procesos y servicios comerciales.', 3, 'Collabtive', 'Permite asignar tareas, roles y responsables, y seguir su cumplimiento, promoviendo la transparencia.', '┌til para documentar y ajustar gobernanza operativa.', '-'),
+('EDM02-P03-A04', 'EDM02-P03', 'Dirigir cualquier cambio necesario en la asignación de responsabilidades y rendición de cuentas para ejecutar la cartera de inversiones y entregar valor a partir de los procesos y servicios comerciales.', 3, 'Collabtive', 'Permite asignar tareas, roles y responsables, y seguir su cumplimiento, promoviendo la transparencia.', 'Útil para documentar y ajustar gobernanza operativa.', '-'),
 
 ('EDM02-P03-A05', 'EDM02-P03', 'Orientar cualquier cambio necesario en la cartera de inversiones y servicios para realinearla con los objetivos y/o limitaciones empresariales actuales y esperados.', 3, 'Open Source Risk Engine', 'Ofrece análisis dinámico de la cartera y puede adaptarse fácilmente a cambios en objetivos o limitaciones.', 'Permite evaluar y reequilibrar en tiempo real.', '-'),
 
@@ -3043,7 +3043,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('EDM02-P04-A03', 'EDM02-P04', 'Obtener informes periódicos y relevantes sobre el desempeño de la cartera, los programas y las tecnologías de la información y las comunicaciones (TI) (tecnológicas y funcionales). Revisar el progreso de la empresa hacia las metas identificadas y el grado de cumplimiento de los objetivos planificados, la obtención de los entregables, el cumplimiento de los objetivos de rendimiento y la mitigación de riesgos.', 4, 'Open Source Risk Engine', 'Genera informes periódicos detallados con seguimiento de objetivos, entregables, cumplimiento de KPIs y mitigación de riesgos.', 'Excelente para gobernanza por resultados.', '-'),
 
-('EDM02-P04-A04', 'EDM02-P04', 'Tras revisar los informes, garantizar que se inicien y controlen las medidas correctivas de gestión adecuadas.', 5, 'MantisBT', 'Permite registrar, asignar, rastrear y cerrar acciones correctivas derivadas de análisis de desempeño.', '┌til para garantizar ejecución de mejoras a tiempo.', '-'),
+('EDM02-P04-A04', 'EDM02-P04', 'Tras revisar los informes, garantizar que se inicien y controlen las medidas correctivas de gestión adecuadas.', 5, 'MantisBT', 'Permite registrar, asignar, rastrear y cerrar acciones correctivas derivadas de análisis de desempeño.', 'Útil para garantizar ejecución de mejoras a tiempo.', '-'),
 
 ('EDM02-P04-A05', 'EDM02-P04', 'Tras revisar los informes, tomar las medidas de gestión adecuadas según sea necesario para garantizar que se optimice el valor.', 5, 'Open Source Risk Engine', 'Evalúa impacto de acciones de gestión propuestas sobre el valor empresarial, reequilibrando cartera o ajustando procesos.', 'Herramienta clave para cerrar ciclo de optimización.', '-'),
 

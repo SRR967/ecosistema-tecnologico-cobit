@@ -42,26 +42,17 @@ export default function NavButton({
 
   // Handler para navegación con router como backup
   const handleNavigation = (e: React.MouseEvent) => {
-    console.log(`🚨 CLICK DETECTADO en NavButton`);
-    console.log(`🔗 Navegando a: ${href}`);
-    console.log(`⭐ Event target:`, e.target);
-    console.log(`⭐ Current target:`, e.currentTarget);
-
     e.preventDefault();
     e.stopPropagation();
 
     if (href && typeof window !== "undefined") {
       // Detectar si estamos en la página ecosistema
-      const currentPath = window.location.pathname;
-      console.log(`📍 Página actual: ${currentPath}`);
+      // const currentPath = window.location.pathname; // Comentado temporalmente
 
       // Siempre usar navegación directa para debugging
-      console.log(`🚀 FORZANDO navegación directa para debugging`);
-      console.log(`🚀 Navegando directamente a: ${href}`);
 
       // Usar setTimeout para asegurar que no hay interferencias
       setTimeout(() => {
-        console.log(`⏰ Ejecutando navegación después de timeout`);
         if (typeof window !== "undefined") {
           window.location.href = href;
         }

@@ -122,8 +122,7 @@ export async function GET(request: Request) {
       data: result.rows,
       total: result.rows.length
     });
-  } catch (error) {
-    console.error('Error en API de tabla COBIT:', error);
+  } catch {
     return NextResponse.json(
       { error: 'Error al cargar los datos de la tabla' },
       { status: 500 }

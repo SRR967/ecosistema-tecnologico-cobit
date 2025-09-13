@@ -17,7 +17,6 @@ export async function GET() {
       throw new Error('No response from database');
     }
   } catch (error) {
-    console.error('Health check failed:', error);
     return NextResponse.json(
       {
         status: 'unhealthy',

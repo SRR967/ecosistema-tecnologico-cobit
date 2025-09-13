@@ -4,6 +4,7 @@ import FilterSelect from "../atoms/FilterSelect";
 import MultiSelect from "../atoms/MultiSelect";
 import ToggleButtonGroup from "../atoms/ToggleButtonGroup";
 import { useCobitData } from "../../hooks/useCobitData";
+// import { Dominio } from "../../lib/database"; // Comentado temporalmente
 import { useState, useEffect, useMemo } from "react";
 
 interface SelectedObjective {
@@ -86,7 +87,6 @@ export default function FilterSidebar({
           }
         })
         .catch((error) => {
-          console.error("Error cargando herramientas filtradas:", error);
           // Fallback: usar todas las herramientas
           setHerramientasFiltradas(
             memoizedHerramientas.map((h) => ({
@@ -105,31 +105,44 @@ export default function FilterSidebar({
 
   // En modo específico, filtrar las opciones según los objetivos seleccionados
   const filteredDominios = isSpecificMode
-    ? dominios.filter((dominio) =>
-        memoizedSelectedObjectives.some((obj) =>
-          obj.code.startsWith(dominio.code)
-        )
+    ? dominios.filter(
+        (dominio) =>
+          dominio &&
+          dominio.codigo &&
+          memoizedSelectedObjectives.some((obj) =>
+            obj.code.startsWith(dominio.codigo)
+          )
       )
-    : dominios;
+    : dominios.filter((dominio) => dominio && dominio.codigo && dominio.nombre);
 
   const filteredObjetivos = isSpecificMode
-    ? objetivos.filter((objetivo) =>
-        memoizedSelectedObjectives.some((obj) => obj.code === objetivo.id)
+    ? objetivos.filter(
+        (objetivo) =>
+          objetivo &&
+          objetivo.id &&
+          memoizedSelectedObjectives.some((obj) => obj.code === objetivo.id)
       )
-    : objetivos;
+    : objetivos.filter((objetivo) => objetivo && objetivo.id);
 
   // En modo específico, usar herramientas filtradas
   const filteredHerramientas = isSpecificMode
-    ? herramientasFiltradas
-    : herramientas;
+    ? herramientasFiltradas.filter((h) => h && h.id)
+    : herramientas.filter((h) => h && h.id);
 
-  // Transformar datos para los selectores
+  // Debug: verificar datos de dominios
+  console.log("Debug dominios:", {
+    dominios,
+    filteredDominios,
+    loading,
+    error,
+    isSpecificMode,
+  });
+
+  // Transformar datos para los selectores (ya filtrados arriba)
   const dominioOptions = filteredDominios.map(
-    (dominio) => `${dominio.code} - ${dominio.name}`
+    (dominio) => `${dominio.codigo} - ${dominio.nombre}`
   );
-
   const objetivoOptions = filteredObjetivos.map((objetivo) => objetivo.id);
-
   const herramientaOptions = filteredHerramientas.map(
     (herramienta) => herramienta.id
   );
@@ -339,12 +352,28 @@ export default function FilterSidebar({
 
           {/* Filtros */}
           <div className="space-y-4">
-            <FilterSelect
-              label="Dominio"
-              options={dominioOptions}
-              value={filters.dominio}
-              onChange={(value) => onFilterChange("dominio", value)}
-            />
+            {dominioOptions.length > 0 ? (
+              <FilterSelect
+                label="Dominio"
+                options={dominioOptions}
+                value={filters.dominio}
+                onChange={(value) => onFilterChange("dominio", value)}
+              />
+            ) : (
+              <div className="space-y-2">
+                <label
+                  className="block text-sm font-medium"
+                  style={{ color: "var(--cobit-blue)" }}
+                >
+                  Dominio
+                </label>
+                <div className="text-sm text-gray-500">
+                  {loading
+                    ? "Cargando dominios..."
+                    : "No hay dominios disponibles"}
+                </div>
+              </div>
+            )}
 
             <MultiSelect
               label="Objetivo"

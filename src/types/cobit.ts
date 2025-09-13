@@ -9,14 +9,14 @@ export interface CobitObjective {
 export interface OGGObjective {
   id: string;
   nombre: string;
-  descripcion: string;
   proposito: string;
+  dominio_codigo: string;
 }
 
 // Función para convertir OGG a CobitObjective
 export function oggToCobitObjective(ogg: OGGObjective): CobitObjective {
-  // Extraer el dominio del ID (primeros 3 caracteres)
-  const domain = ogg.id.substring(0, 3) as 'EDM' | 'APO' | 'BAI' | 'DSS' | 'MEA';
+  // Usar el dominio_codigo directamente de la base de datos
+  const domain = ogg.dominio_codigo as 'EDM' | 'APO' | 'BAI' | 'DSS' | 'MEA';
   
   return {
     code: ogg.id,

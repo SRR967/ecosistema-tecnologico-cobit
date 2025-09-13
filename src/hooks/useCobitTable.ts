@@ -93,7 +93,6 @@ export function useCobitTable(
       setData(result.data || []);
       setTotal(result.total || 0);
     } catch (err) {
-      console.error('Error al cargar tabla COBIT:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
       setData([]);
       setTotal(0);
