@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+require('dotenv').config({ path: '.env.local' });
 
 // Configuración de conexión
 const pool = new Pool({
