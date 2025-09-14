@@ -240,19 +240,27 @@ export default function CobitGraph({
         d3
           .forceLink(data.links)
           .id((d) => (d as D3SimulationNode).id)
-          .distance(100)
+          .distance(180) // Aumentado significativamente para más separación
       )
-      .force("charge", d3.forceManyBody().strength(-300))
+      .force("charge", d3.forceManyBody().strength(-400)) // Más repulsión
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force(
         "collision",
         d3.forceCollide().radius((d) => {
           const node = d as D3SimulationNode;
           if (node.type === "herramienta") {
-            return getToolNodeSize(node.id) + 5; // Radio dinámico + padding
+            return getToolNodeSize(node.id) + 25; // Radio dinámico + padding aumentado
           }
-          return 25; // Radio fijo para objetivos (20 + padding)
+          return 35; // Radio fijo para objetivos (20 + 15px padding)
         })
+      )
+      .force(
+        "x",
+        d3.forceX(width / 2).strength(0.1) // Fuerza suave hacia el centro X
+      )
+      .force(
+        "y",
+        d3.forceY(height / 2).strength(0.1) // Fuerza suave hacia el centro Y
       );
 
     // Crear enlaces
@@ -263,9 +271,9 @@ export default function CobitGraph({
       .data(data.links)
       .enter()
       .append("line")
-      .attr("stroke", "#000000")
-      .attr("stroke-opacity", 0.8)
-      .attr("stroke-width", 2);
+      .attr("stroke", "#9CA3AF") // Gris más suave
+      .attr("stroke-opacity", 0.6)
+      .attr("stroke-width", 1); // Líneas más delgadas
 
     // Crear nodos
     const node = g
@@ -340,22 +348,22 @@ export default function CobitGraph({
       }
     });
 
-    // Etiquetas de nodos - posición dinámica según el tamaño del nodo
-    node
+    // Etiquetas de nodos simples - sin fondo
+    const labels = node
       .append("text")
-      .text((d: GrafoNode) => d.id)
-      .attr("font-size", "10px")
-      .attr("dx", (d: GrafoNode) => {
-        // Para herramientas, usar el tamaño dinámico + padding
-        if (d.type === "herramienta") {
-          const nodeSize = getToolNodeSize(d.id);
-          return nodeSize + 8; // Tamaño del nodo + 8px de padding
-        }
-        // Para objetivos, usar tamaño fijo + padding
-        return 25; // 20px (tamaño objetivo) + 5px padding
+      .text((d: GrafoNode) => {
+        // Truncar texto largo para evitar superposición
+        const maxLength = d.type === "herramienta" ? 12 : 8;
+        return d.id.length > maxLength
+          ? d.id.substring(0, maxLength) + "..."
+          : d.id;
       })
-      .attr("dy", 4)
-      .attr("fill", "#333");
+      .attr("font-size", "9px")
+      .attr("font-weight", "500")
+      .attr("text-anchor", "start")
+      .attr("dy", 3)
+      .attr("fill", "#374151") // Gris más oscuro para mejor contraste
+      .style("pointer-events", "none");
 
     // Tooltip
     const tooltip = d3
@@ -591,6 +599,12 @@ export default function CobitGraph({
         "transform",
         (d: D3SimulationNode) => `translate(${d.x || 0},${d.y || 0})`
       );
+
+      // Actualizar posiciones de las etiquetas
+      labels.attr("dx", (d: D3SimulationNode) => {
+        const nodeSize = d.type === "herramienta" ? getToolNodeSize(d.id) : 20;
+        return nodeSize + 8;
+      });
     });
 
     // Funciones de drag
