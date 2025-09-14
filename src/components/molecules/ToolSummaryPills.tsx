@@ -5,9 +5,9 @@ import { useCobitTable } from "../../hooks/useCobitTable";
 
 interface ToolSummaryPillsProps {
   filters: {
-    dominio: string;
+    dominio: string[];
     objetivo: string[];
-    herramienta: string;
+    herramienta: string[];
   };
   selectedObjectives?: Array<{
     code: string;
@@ -37,7 +37,7 @@ export default function ToolSummaryPills({
     const counts: { [key: string]: ToolCount } = {};
 
     data.forEach((row) => {
-      const toolId = row.herramienta_id;
+      const toolId = row.herramienta_id || "N/A";
       const toolName = row.herramienta_nombre || toolId;
       const toolCategory = row.herramienta_categoria;
 
@@ -67,7 +67,10 @@ export default function ToolSummaryPills({
     );
   }
 
-  if (toolCounts.length === 0) {
+  // Filtrar herramientas reales para verificar si hay alguna
+  const realTools = toolCounts.filter((tool) => tool.id !== "N/A");
+
+  if (realTools.length === 0) {
     return (
       <div className={`flex items-center space-x-2 ${className}`}>
         <div className="px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-600">
@@ -81,7 +84,7 @@ export default function ToolSummaryPills({
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       {/* Contador total */}
       <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-        {toolCounts.length} herramienta{toolCounts.length !== 1 ? "s" : ""}
+        {realTools.length} herramienta{realTools.length !== 1 ? "s" : ""}
       </div>
 
       {/* Pastillas individuales */}

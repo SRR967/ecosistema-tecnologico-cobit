@@ -71,7 +71,7 @@ export default function CobitTable({
       row.practica_nombre.toLowerCase().includes(searchLower) ||
       row.actividad_id.toLowerCase().includes(searchLower) ||
       row.actividad_descripcion.toLowerCase().includes(searchLower) ||
-      row.herramienta_id.toLowerCase().includes(searchLower) ||
+      (row.herramienta_id || "N/A").toLowerCase().includes(searchLower) ||
       (row.herramienta_categoria &&
         row.herramienta_categoria.toLowerCase().includes(searchLower)) ||
       row.justificacion.toLowerCase().includes(searchLower) ||
@@ -396,7 +396,7 @@ export default function CobitTable({
                   </td>
                   <td className="px-3 py-4">
                     <div className="text-sm text-gray-900 max-w-32 break-words">
-                      {row.herramienta_id}
+                      {row.herramienta_id || "N/A"}
                     </div>
                     {row.herramienta_categoria && (
                       <div className="text-xs text-gray-500">

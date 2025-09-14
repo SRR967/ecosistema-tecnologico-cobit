@@ -41,9 +41,9 @@ const loadAutoTable = async () => {
 };
 
 interface FilterState {
-  dominio: string;
+  dominio: string[];
   objetivo: string[];
-  herramienta: string;
+  herramienta: string[];
 }
 
 interface SelectedObjective {
@@ -159,17 +159,17 @@ export function usePDFExport() {
       }
       
       // Filtros adicionales
-      if (filters.dominio) {
-        filtrosData.push(["Dominio", filters.dominio]);
+      if (filters.dominio && filters.dominio.length > 0) {
+        filtrosData.push(["Dominio", filters.dominio.join(", ")]);
       }
       if (filters.objetivo && filters.objetivo.length > 0) {
         filtrosData.push(["Objetivo", filters.objetivo.join(", ")]);
       }
-      if (filters.herramienta) {
-        filtrosData.push(["Herramienta", filters.herramienta]);
+      if (filters.herramienta && filters.herramienta.length > 0) {
+        filtrosData.push(["Herramienta", filters.herramienta.join(", ")]);
       }
       
-      if (!filters.dominio && !filters.objetivo && !filters.herramienta && (!isSpecificMode || selectedObjectives.length === 0)) {
+      if ((!filters.dominio || filters.dominio.length === 0) && (!filters.objetivo || filters.objetivo.length === 0) && (!filters.herramienta || filters.herramienta.length === 0) && (!isSpecificMode || selectedObjectives.length === 0)) {
         filtrosData.push(["Filtros", "Sin filtros específicos aplicados"]);
       }
       
