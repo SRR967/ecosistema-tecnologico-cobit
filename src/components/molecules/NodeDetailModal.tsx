@@ -14,7 +14,6 @@ interface HerramientaDetail {
 interface ObjetivoDetail {
   id: string;
   nombre: string;
-  descripcion: string;
   proposito: string;
 }
 
@@ -142,15 +141,6 @@ export default function NodeDetailModal({
         <h4 className="font-semibold text-gray-700 mb-2 text-sm">Nombre</h4>
         <p className="text-gray-600 bg-gray-50 p-2 rounded text-sm">
           {objetivo.nombre}
-        </p>
-      </div>
-
-      <div>
-        <h4 className="font-semibold text-gray-700 mb-2 text-sm">
-          Descripción
-        </h4>
-        <p className="text-gray-600 bg-gray-50 p-3 rounded leading-relaxed text-sm">
-          {objetivo.descripcion}
         </p>
       </div>
 

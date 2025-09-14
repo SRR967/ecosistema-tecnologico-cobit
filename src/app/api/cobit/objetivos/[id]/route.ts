@@ -16,7 +16,7 @@ export async function GET(
     }
 
     const result = await pool.query(
-      'SELECT id, nombre, descripcion, proposito FROM ogg WHERE id = $1',
+      'SELECT id, nombre, proposito FROM ogg WHERE id = $1',
       [id]
     );
 
