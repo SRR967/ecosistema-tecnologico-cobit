@@ -37,9 +37,9 @@ export default function CrearEcosistemaPage() {
 
   // Estados para el ecosistema creado
   const [filters, setFilters] = useState({
-    dominio: "",
+    dominio: [] as string[],
     objetivo: [] as string[],
-    herramienta: "",
+    herramienta: [] as string[],
   });
   const [viewMode, setViewMode] = useState<"grafico" | "lista">("grafico");
 
@@ -81,7 +81,7 @@ export default function CrearEcosistemaPage() {
   // Funciones para manejar el ecosistema creado
   const handleFilterChange = (
     filterType: "dominio" | "objetivo" | "herramienta",
-    value: string | string[]
+    value: string[]
   ) => {
     setFilters((prev) => ({
       ...prev,
@@ -95,18 +95,18 @@ export default function CrearEcosistemaPage() {
 
   const handleClearFilters = () => {
     setFilters({
-      dominio: "",
+      dominio: [],
       objetivo: [],
-      herramienta: "",
+      herramienta: [],
     });
   };
 
   const handleBackToSelection = () => {
     setShowEcosistema(false);
     setFilters({
-      dominio: "",
+      dominio: [],
       objetivo: [],
-      herramienta: "",
+      herramienta: [],
     });
   };
 

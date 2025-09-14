@@ -5,6 +5,9 @@ import { HerramientaRow, DBRow } from "../../../../types/database";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const dominios = searchParams.getAll('dominio');
+    const objetivos = searchParams.getAll('objetivo');
+    const herramientas = searchParams.getAll('herramienta');
     
     // Extraer objetivos seleccionados de los parámetros
     const selectedObjectives: Array<{ code: string; level: number }> = [];
@@ -23,8 +26,10 @@ export async function GET(request: NextRequest) {
       index++;
     }
 
-    if (selectedObjectives.length === 0) {
-      // Si no hay objetivos específicos, devolver todas las herramientas
+    // Si no hay filtros activos, devolver todas las herramientas
+    const hasActiveFilters = dominios.length > 0 || objetivos.length > 0 || herramientas.length > 0 || selectedObjectives.length > 0;
+    
+    if (!hasActiveFilters) {
       const allHerramientasQuery = `
         SELECT DISTINCT id, categoria
         FROM herramienta
@@ -43,26 +48,70 @@ export async function GET(request: NextRequest) {
     }
 
     // Construir consulta SQL para herramientas filtradas
-    const conditions = selectedObjectives.map((_, index) => 
-      `(o.id = $${index * 2 + 1} AND a.nivel_capacidad <= $${index * 2 + 2})`
-    ).join(' OR ');
-    
-    const values: (string | number)[] = [];
-    selectedObjectives.forEach(obj => {
-      values.push(obj.code, obj.level);
-    });
-
-    const herramientasQuery = `
+    let query = `
       SELECT DISTINCT h.id, h.categoria
       FROM herramienta h
       INNER JOIN actividad a ON h.id = a.herramienta_id
       INNER JOIN practica p ON a.practica_id = p.practica_id
       INNER JOIN ogg o ON p.ogg_id = o.id
-      WHERE ${conditions}
-      ORDER BY h.id
+      WHERE 1=1
     `;
 
-    const result = await pool.query(herramientasQuery, values);
+    const params: (string | number)[] = [];
+    let paramIndex = 1;
+
+    // Filtro por dominios
+    if (dominios && dominios.length > 0) {
+      const dominioConditions = dominios.map(() => {
+        const condition = `o.id LIKE $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${dominioConditions.join(' OR ')})`;
+      dominios.forEach(dominio => {
+        const dominioCode = dominio.split(' - ')[0];
+        params.push(`${dominioCode}%`);
+      });
+    }
+
+    // Filtro por objetivos
+    if (objetivos && objetivos.length > 0) {
+      const objetivoConditions = objetivos.map(() => {
+        const condition = `o.id = $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${objetivoConditions.join(' OR ')})`;
+      params.push(...objetivos);
+    }
+
+    // Filtro por herramientas específicas
+    if (herramientas && herramientas.length > 0) {
+      const herramientaConditions = herramientas.map(() => {
+        const condition = `h.id = $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${herramientaConditions.join(' OR ')})`;
+      params.push(...herramientas);
+    }
+
+    // Filtro por objetivos específicos con niveles
+    if (selectedObjectives.length > 0) {
+      const objectiveConditions = selectedObjectives.map(() => {
+        const condition = `(o.id = $${paramIndex} AND a.nivel_capacidad <= $${paramIndex + 1})`;
+        paramIndex += 2;
+        return condition;
+      });
+      query += ` AND (${objectiveConditions.join(' OR ')})`;
+      selectedObjectives.forEach(obj => {
+        params.push(obj.code, obj.level);
+      });
+    }
+
+    query += ` ORDER BY h.id`;
+
+    const result = await pool.query(query, params);
     
     return NextResponse.json({
       success: true,

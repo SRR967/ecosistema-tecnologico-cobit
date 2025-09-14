@@ -25,9 +25,9 @@ export interface GrafoData {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const dominio = searchParams.get('dominio');
+    const dominios = searchParams.getAll('dominio'); // Cambiar a getAll para múltiples valores
     const objetivos = searchParams.getAll('objetivo'); // Cambiar a getAll para múltiples valores
-    const herramienta = searchParams.get('herramienta');
+    const herramientas = searchParams.getAll('herramienta'); // Cambiar a getAll para múltiples valores
     
     // Nuevos parámetros para objetivos específicos con niveles
     const selectedObjectives: { code: string; level: number }[] = [];
@@ -67,12 +67,19 @@ export async function GET(request: Request) {
     const params: string[] = [];
     let paramIndex = 1;
 
-    // Filtro por dominio
-    if (dominio && dominio !== '') {
-      const dominioCode = dominio.split(' - ')[0];
-      query += ` AND o.id LIKE $${paramIndex}`;
-      params.push(`${dominioCode}%`);
-      paramIndex++;
+    // Filtro por dominios (múltiples)
+    if (dominios && dominios.length > 0) {
+      const dominioConditions = dominios.map(() => {
+        const condition = `o.id LIKE $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${dominioConditions.join(' OR ')})`;
+      // Agregar el patrón % para cada dominio
+      dominios.forEach(dominio => {
+        const dominioCode = dominio.split(' - ')[0];
+        params.push(`${dominioCode}%`);
+      });
     }
 
     // Filtro por objetivos específicos (múltiples)
@@ -86,11 +93,15 @@ export async function GET(request: Request) {
       params.push(...objetivos);
     }
 
-    // Filtro por herramienta
-    if (herramienta && herramienta !== '') {
-      query += ` AND h.id = $${paramIndex}`;
-      params.push(herramienta);
-      paramIndex++;
+    // Filtro por herramientas (múltiples)
+    if (herramientas && herramientas.length > 0) {
+      const herramientaConditions = herramientas.map(() => {
+        const condition = `h.id = $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      query += ` AND (${herramientaConditions.join(' OR ')})`;
+      params.push(...herramientas);
     }
     
     // Filtro por objetivos específicos con niveles de capacidad

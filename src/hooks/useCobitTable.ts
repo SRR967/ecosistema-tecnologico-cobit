@@ -30,9 +30,9 @@ export interface SelectedObjective {
 }
 
 export interface TableFilters {
-  dominio: string;
+  dominio: string[];
   objetivo: string[];
-  herramienta: string;
+  herramienta: string[];
 }
 
 export function useCobitTable(
@@ -70,11 +70,17 @@ export function useCobitTable(
 
       // Construir parámetros de query
       const params = new URLSearchParams();
-      if (filters.dominio) params.append('dominio', filters.dominio);
+      
+      // Solo agregar parámetros si hay filtros activos
+      if (filters.dominio && filters.dominio.length > 0) {
+        filters.dominio.forEach(dominio => params.append('dominio', dominio));
+      }
       if (filters.objetivo && filters.objetivo.length > 0) {
         filters.objetivo.forEach(obj => params.append('objetivo', obj));
       }
-      if (filters.herramienta) params.append('herramienta', filters.herramienta);
+      if (filters.herramienta && filters.herramienta.length > 0) {
+        filters.herramienta.forEach(herramienta => params.append('herramienta', herramienta));
+      }
       
       // Agregar objetivos seleccionados si existen
       if (memoizedSelectedObjectives && memoizedSelectedObjectives.length > 0) {

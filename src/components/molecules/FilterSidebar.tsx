@@ -4,6 +4,7 @@ import FilterSelect from "../atoms/FilterSelect";
 import MultiSelect from "../atoms/MultiSelect";
 import ToggleButtonGroup from "../atoms/ToggleButtonGroup";
 import { useCobitData } from "../../hooks/useCobitData";
+import { useDynamicFilters } from "../../hooks/useDynamicFilters";
 // import { Dominio } from "../../lib/database"; // Comentado temporalmente
 import { useState, useEffect, useMemo } from "react";
 
@@ -14,13 +15,13 @@ interface SelectedObjective {
 
 interface FilterSidebarProps {
   filters: {
-    dominio: string;
+    dominio: string[];
     objetivo: string[];
-    herramienta: string;
+    herramienta: string[];
   };
   onFilterChange: (
     filterType: "dominio" | "objetivo" | "herramienta",
-    value: string | string[]
+    value: string[]
   ) => void;
   onClearFilters: () => void;
   viewMode: "grafico" | "lista";
@@ -45,6 +46,15 @@ export default function FilterSidebar({
 }: FilterSidebarProps) {
   // Cargar datos desde la base de datos
   const { dominios, objetivos, herramientas, loading, error } = useCobitData();
+
+  // Usar filtrado dinámico
+  const {
+    filteredDominios,
+    filteredObjetivos,
+    filteredHerramientas,
+    loading: dynamicLoading,
+    error: dynamicError,
+  } = useDynamicFilters(dominios, objetivos, herramientas, filters);
 
   // Estado para herramientas filtradas en modo específico
   const [herramientasFiltradas, setHerramientasFiltradas] = useState<
@@ -103,8 +113,8 @@ export default function FilterSidebar({
     }
   }, [isSpecificMode, memoizedSelectedObjectives, memoizedHerramientas]);
 
-  // En modo específico, filtrar las opciones según los objetivos seleccionados
-  const filteredDominios = isSpecificMode
+  // Usar datos filtrados dinámicamente o datos específicos según el modo
+  const finalFilteredDominios = isSpecificMode
     ? dominios.filter(
         (dominio) =>
           dominio &&
@@ -113,50 +123,51 @@ export default function FilterSidebar({
             obj.code.startsWith(dominio.codigo)
           )
       )
-    : dominios.filter((dominio) => dominio && dominio.codigo && dominio.nombre);
+    : filteredDominios.filter(
+        (dominio) => dominio && dominio.codigo && dominio.nombre
+      );
 
-  const filteredObjetivos = isSpecificMode
+  const finalFilteredObjetivos = isSpecificMode
     ? objetivos.filter(
         (objetivo) =>
           objetivo &&
           objetivo.id &&
           memoizedSelectedObjectives.some((obj) => obj.code === objetivo.id)
       )
-    : objetivos.filter((objetivo) => objetivo && objetivo.id);
+    : filteredObjetivos.filter((objetivo) => objetivo && objetivo.id);
 
-  // En modo específico, usar herramientas filtradas
-  const filteredHerramientas = isSpecificMode
+  const finalFilteredHerramientas = isSpecificMode
     ? herramientasFiltradas.filter((h) => h && h.id)
-    : herramientas.filter((h) => h && h.id);
+    : filteredHerramientas.filter((h) => h && h.id);
 
   // Debug: verificar datos de dominios
   console.log("Debug dominios:", {
     dominios,
-    filteredDominios,
+    finalFilteredDominios,
     loading,
     error,
     isSpecificMode,
   });
 
   // Transformar datos para los selectores (ya filtrados arriba)
-  const dominioOptions = filteredDominios.map(
+  const dominioOptions = finalFilteredDominios.map(
     (dominio) => `${dominio.codigo} - ${dominio.nombre}`
   );
-  const objetivoOptions = filteredObjetivos.map((objetivo) => objetivo.id);
-  const herramientaOptions = filteredHerramientas.map(
+  const objetivoOptions = finalFilteredObjetivos.map((objetivo) => objetivo.id);
+  const herramientaOptions = finalFilteredHerramientas.map(
     (herramienta) => herramienta.id
   );
 
   // Detectar si hay filtros activos
   const hasActiveFilters = Object.entries(filters).some(([key, filter]) => {
-    if (key === "objetivo") {
-      return Array.isArray(filter) && filter.length > 0;
-    }
-    return filter !== "";
+    return Array.isArray(filter) && filter.length > 0;
   });
 
+  // Solo mostrar loading si hay filtros activos o si está cargando datos base
+  const shouldShowLoading = loading || (hasActiveFilters && dynamicLoading);
+
   // Mostrar estado de carga
-  if (loading) {
+  if (shouldShowLoading) {
     return (
       <div className={`w-80 p-6 ${className}`}>
         <div className="space-y-6">
@@ -172,7 +183,11 @@ export default function FilterSidebar({
                 className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2"
                 style={{ borderColor: "var(--cobit-blue)" }}
               ></div>
-              <p className="text-gray-600 b1">Cargando datos...</p>
+              <p className="text-gray-600 b1">
+                {hasActiveFilters
+                  ? "Aplicando filtros..."
+                  : "Cargando datos..."}
+              </p>
             </div>
           </div>
         </div>
@@ -181,7 +196,7 @@ export default function FilterSidebar({
   }
 
   // Mostrar error si ocurre
-  if (error) {
+  if (error || dynamicError) {
     return (
       <div className={`w-80 p-6 ${className}`}>
         <div className="space-y-6">
@@ -193,7 +208,7 @@ export default function FilterSidebar({
           </h2>
           <div className="text-center py-8">
             <div className="text-red-500 mb-2">⚠️</div>
-            <p className="text-red-600 b1">{error}</p>
+            <p className="text-red-600 b1">{error || dynamicError}</p>
             <button
               onClick={() => window.location.reload()}
               className="mt-2 px-4 py-2 text-sm rounded-md"
@@ -248,10 +263,7 @@ export default function FilterSidebar({
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   {
                     Object.entries(filters).filter(([key, f]) => {
-                      if (key === "objetivo") {
-                        return Array.isArray(f) && f.length > 0;
-                      }
-                      return f !== "";
+                      return Array.isArray(f) && f.length > 0;
                     }).length
                   }
                 </span>
@@ -315,10 +327,7 @@ export default function FilterSidebar({
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     {
                       Object.entries(filters).filter(([key, f]) => {
-                        if (key === "objetivo") {
-                          return Array.isArray(f) && f.length > 0;
-                        }
-                        return f !== "";
+                        return Array.isArray(f) && f.length > 0;
                       }).length
                     }
                   </span>
@@ -353,11 +362,12 @@ export default function FilterSidebar({
           {/* Filtros */}
           <div className="space-y-4">
             {dominioOptions.length > 0 ? (
-              <FilterSelect
+              <MultiSelect
                 label="Dominio"
                 options={dominioOptions}
-                value={filters.dominio}
-                onChange={(value) => onFilterChange("dominio", value)}
+                selectedValues={filters.dominio}
+                onChange={(values) => onFilterChange("dominio", values)}
+                placeholder="Seleccionar dominios"
               />
             ) : (
               <div className="space-y-2">
@@ -368,7 +378,7 @@ export default function FilterSidebar({
                   Dominio
                 </label>
                 <div className="text-sm text-gray-500">
-                  {loading
+                  {loading || dynamicLoading
                     ? "Cargando dominios..."
                     : "No hay dominios disponibles"}
                 </div>
@@ -383,11 +393,12 @@ export default function FilterSidebar({
               placeholder="Seleccionar objetivos"
             />
 
-            <FilterSelect
+            <MultiSelect
               label="Herramienta"
               options={herramientaOptions}
-              value={filters.herramienta}
-              onChange={(value) => onFilterChange("herramienta", value)}
+              selectedValues={filters.herramienta}
+              onChange={(values) => onFilterChange("herramienta", values)}
+              placeholder="Seleccionar herramientas"
             />
           </div>
 
@@ -395,12 +406,15 @@ export default function FilterSidebar({
           {isSpecificMode && (
             <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-600">
               <div className="space-y-1">
-                <div>• {filteredDominios.length} dominio(s) disponible(s)</div>
                 <div>
-                  • {filteredObjetivos.length} objetivo(s) seleccionado(s)
+                  • {finalFilteredDominios.length} dominio(s) disponible(s)
                 </div>
                 <div>
-                  • {filteredHerramientas.length} herramienta(s) relacionada(s)
+                  • {finalFilteredObjetivos.length} objetivo(s) seleccionado(s)
+                </div>
+                <div>
+                  • {finalFilteredHerramientas.length} herramienta(s)
+                  relacionada(s)
                 </div>
               </div>
             </div>

@@ -20,9 +20,9 @@ function EcosistemaContent() {
   const [isSpecificMode, setIsSpecificMode] = useState(false);
 
   const [filters, setFilters] = useState({
-    dominio: "",
+    dominio: [] as string[],
     objetivo: [] as string[],
-    herramienta: "",
+    herramienta: [] as string[],
   });
 
   const [viewMode, setViewMode] = useState<"grafico" | "lista">("grafico");
@@ -54,7 +54,7 @@ function EcosistemaContent() {
 
   const handleFilterChange = (
     filterType: "dominio" | "objetivo" | "herramienta",
-    value: string | string[]
+    value: string[]
   ) => {
     setFilters((prev) => ({
       ...prev,
@@ -68,9 +68,9 @@ function EcosistemaContent() {
 
   const handleClearFilters = () => {
     setFilters({
-      dominio: "",
+      dominio: [],
       objetivo: [],
-      herramienta: "",
+      herramienta: [],
     });
   };
 
