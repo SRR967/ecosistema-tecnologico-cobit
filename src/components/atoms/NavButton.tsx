@@ -45,17 +45,11 @@ export default function NavButton({
     e.preventDefault();
     e.stopPropagation();
 
-    if (href && typeof window !== "undefined") {
-      // Detectar si estamos en la página ecosistema
-      // const currentPath = window.location.pathname; // Comentado temporalmente
-
-      // Siempre usar navegación directa para debugging
-
-      // Usar setTimeout para asegurar que no hay interferencias
+    if (href) {
+      // Usar navegación directa sin verificaciones de window
+      // para evitar problemas de hidratación
       setTimeout(() => {
-        if (typeof window !== "undefined") {
-          window.location.href = href;
-        }
+        window.location.href = href;
       }, 100);
     }
   };

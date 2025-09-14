@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { OGG, Herramienta, Dominio } from '../lib/database';
 
 interface DynamicFilters {
@@ -14,6 +14,12 @@ interface UseDynamicFiltersReturn {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  // Estados granulares para cada filtro
+  loadingStates: {
+    dominios: boolean;
+    objetivos: boolean;
+    herramientas: boolean;
+  };
 }
 
 export function useDynamicFilters(
@@ -27,8 +33,21 @@ export function useDynamicFilters(
   const [filteredHerramientas, setFilteredHerramientas] = useState<Herramienta[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Estados de carga granulares
+  const [loadingStates, setLoadingStates] = useState({
+    dominios: false,
+    objetivos: false,
+    herramientas: false,
+  });
+  
+  // Ref para el timeout del debounce
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Cache simple para evitar consultas repetidas
+  const cacheRef = useRef<Map<string, any>>(new Map());
 
-  const fetchFilteredData = async () => {
+  const fetchFilteredData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -43,6 +62,23 @@ export function useDynamicFilters(
         setFilteredDominios(Array.isArray(allDominios) ? allDominios : []);
         setFilteredObjetivos(Array.isArray(allObjetivos) ? allObjetivos : []);
         setFilteredHerramientas(Array.isArray(allHerramientas) ? allHerramientas : []);
+        setLoading(false);
+        return;
+      }
+      
+      // Crear clave de caché basada en los filtros
+      const cacheKey = JSON.stringify({
+        dominio: filters.dominio.sort(),
+        objetivo: filters.objetivo.sort(),
+        herramienta: filters.herramienta.sort()
+      });
+      
+      // Verificar caché
+      if (cacheRef.current.has(cacheKey)) {
+        const cachedData = cacheRef.current.get(cacheKey);
+        setFilteredDominios(cachedData.dominios);
+        setFilteredObjetivos(cachedData.objetivos);
+        setFilteredHerramientas(cachedData.herramientas);
         setLoading(false);
         return;
       }
@@ -66,6 +102,9 @@ export function useDynamicFilters(
       });
 
       // Hacer consultas en paralelo para obtener datos filtrados
+      // pero con estados de carga individuales
+      setLoadingStates({ dominios: true, objetivos: true, herramientas: true });
+      
       const [dominiosRes, objetivosRes, herramientasRes] = await Promise.all([
         fetch(`/api/cobit/dominios-filtrados?${params.toString()}`),
         fetch(`/api/cobit/objetivos-filtrados?${params.toString()}`),
@@ -90,9 +129,27 @@ export function useDynamicFilters(
         : herramientasResponse;
 
       // Asegurar que siempre sean arrays
-      setFilteredDominios(Array.isArray(dominiosData) ? dominiosData : []);
-      setFilteredObjetivos(Array.isArray(objetivosData) ? objetivosData : []);
-      setFilteredHerramientas(Array.isArray(herramientasData) ? herramientasData : []);
+      const finalDominios = Array.isArray(dominiosData) ? dominiosData : [];
+      const finalObjetivos = Array.isArray(objetivosData) ? objetivosData : [];
+      const finalHerramientas = Array.isArray(herramientasData) ? herramientasData : [];
+      
+      setFilteredDominios(finalDominios);
+      setFilteredObjetivos(finalObjetivos);
+      setFilteredHerramientas(finalHerramientas);
+      
+      // Limpiar estados de carga individuales
+      setLoadingStates({ dominios: false, objetivos: false, herramientas: false });
+      
+      // Guardar en caché (limitar tamaño del caché)
+      if (cacheRef.current.size > 50) {
+        const firstKey = cacheRef.current.keys().next().value;
+        cacheRef.current.delete(firstKey);
+      }
+      cacheRef.current.set(cacheKey, {
+        dominios: finalDominios,
+        objetivos: finalObjetivos,
+        herramientas: finalHerramientas
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
       // Fallback a datos completos si hay error
@@ -102,12 +159,27 @@ export function useDynamicFilters(
     } finally {
       setLoading(false);
     }
-  };
-
-  // Efecto para recalcular filtros cuando cambien los filtros o datos base
-  useEffect(() => {
-    fetchFilteredData();
   }, [filters.dominio, filters.objetivo, filters.herramienta, allDominios, allObjetivos, allHerramientas]);
+
+  // Efecto para recalcular filtros cuando cambien los filtros o datos base (con debounce)
+  useEffect(() => {
+    // Limpiar timeout anterior
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    // Establecer nuevo timeout para debounce (300ms)
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchFilteredData();
+    }, 300);
+    
+    // Cleanup function
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [filters.dominio, filters.objetivo, filters.herramienta, allDominios, allObjetivos, allHerramientas, fetchFilteredData]);
 
   // Memoizar resultados para evitar recálculos innecesarios
   const memoizedResults = useMemo(() => ({
@@ -116,8 +188,9 @@ export function useDynamicFilters(
     filteredHerramientas,
     loading,
     error,
-    refetch: fetchFilteredData
-  }), [filteredDominios, filteredObjetivos, filteredHerramientas, loading, error]);
+    refetch: fetchFilteredData,
+    loadingStates
+  }), [filteredDominios, filteredObjetivos, filteredHerramientas, loading, error, loadingStates]);
 
   return memoizedResults;
 }

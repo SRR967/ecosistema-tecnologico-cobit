@@ -10,11 +10,11 @@ export async function GET(request: NextRequest) {
     let query = `
       SELECT DISTINCT o.id, o.nombre, o.proposito, o.dominio_codigo
       FROM ogg o
-      INNER JOIN practica p ON o.id = p.ogg_id
-      INNER JOIN actividad a ON p.practica_id = a.practica_id
-      INNER JOIN herramienta h ON a.herramienta_id = h.id
-      WHERE 1=1
-    `;
+      WHERE EXISTS (
+        SELECT 1 FROM practica p
+        INNER JOIN actividad a ON p.practica_id = a.practica_id
+        INNER JOIN herramienta h ON a.herramienta_id = h.id
+        WHERE o.id = p.ogg_id`;
 
     const params: string[] = [];
     let paramIndex = 1;
@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
       params.push(...herramientas);
     }
 
-    query += ` ORDER BY o.id`;
+    query += `
+      )
+      ORDER BY o.id`;
 
     const result = await pool.query(query, params);
     

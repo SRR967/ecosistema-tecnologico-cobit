@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "../../../../lib/database";
 import { HerramientaRow, DBRow } from "../../../../types/database";
+import { cache, cacheHelpers, SimpleCache } from "../../../../lib/cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +9,19 @@ export async function GET(request: NextRequest) {
     const dominios = searchParams.getAll('dominio');
     const objetivos = searchParams.getAll('objetivo');
     const herramientas = searchParams.getAll('herramienta');
+    
+    // Crear clave de caché
+    const cacheKey = SimpleCache.generateKey('herramientas-filtradas', {
+      dominios: dominios.sort(),
+      objetivos: objetivos.sort(),
+      herramientas: herramientas.sort()
+    });
+    
+    // Verificar caché
+    const cachedResult = cache.get(cacheKey);
+    if (cachedResult) {
+      return NextResponse.json(cachedResult);
+    }
     
     // Extraer objetivos seleccionados de los parámetros
     const selectedObjectives: Array<{ code: string; level: number }> = [];
@@ -38,24 +52,29 @@ export async function GET(request: NextRequest) {
       
       const result = await pool.query(allHerramientasQuery);
       
-      return NextResponse.json({
+      const response = {
         success: true,
         herramientas: result.rows.map((row: DBRow): HerramientaRow => ({
           id: row.id as string,
           categoria: row.categoria as string
         }))
-      });
+      };
+      
+      // Guardar en caché (datos estáticos, TTL más largo)
+      cacheHelpers.setStaticData(cacheKey, response);
+      
+      return NextResponse.json(response);
     }
 
-    // Construir consulta SQL para herramientas filtradas
+    // Construir consulta SQL optimizada para herramientas filtradas
     let query = `
       SELECT DISTINCT h.id, h.categoria
       FROM herramienta h
-      INNER JOIN actividad a ON h.id = a.herramienta_id
-      INNER JOIN practica p ON a.practica_id = p.practica_id
-      INNER JOIN ogg o ON p.ogg_id = o.id
-      WHERE 1=1
-    `;
+      WHERE EXISTS (
+        SELECT 1 FROM actividad a
+        INNER JOIN practica p ON a.practica_id = p.practica_id
+        INNER JOIN ogg o ON p.ogg_id = o.id
+        WHERE h.id = a.herramienta_id`;
 
     const params: (string | number)[] = [];
     let paramIndex = 1;
@@ -109,17 +128,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    query += ` ORDER BY h.id`;
+    query += `
+      )
+      ORDER BY h.id`;
 
     const result = await pool.query(query, params);
     
-    return NextResponse.json({
+    const response = {
       success: true,
       herramientas: result.rows.map((row: DBRow): HerramientaRow => ({
         id: row.id as string,
         categoria: row.categoria as string
       }))
-    });
+    };
+    
+    // Guardar en caché
+    cacheHelpers.setFilteredData(cacheKey, response);
+    
+    return NextResponse.json(response);
 
   } catch {
     return NextResponse.json(

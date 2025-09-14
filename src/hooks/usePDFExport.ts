@@ -567,7 +567,7 @@ export function usePDFExport() {
             { align: "center" }
           );
           doc.text(
-            "Desarrollado por: Jhoan Esteban Soler Giral, Johana Paola Palacio Osorio, Jesús Santiago Ramón Ramos",
+            "Desarrollado por: Jhoan Esteban Soler Giraldo, Johana Paola Palacio Osorio, Jesús Santiago Ramón Ramos",
             pageWidth / 2,
             pageHeight - 25,
             { align: "center" }

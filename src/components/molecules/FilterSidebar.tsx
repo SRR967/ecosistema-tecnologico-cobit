@@ -1,12 +1,15 @@
 "use client";
 
-import FilterSelect from "../atoms/FilterSelect";
+import { SmartFilterSelect } from "../atoms/SmartFilterSelect";
 import MultiSelect from "../atoms/MultiSelect";
 import ToggleButtonGroup from "../atoms/ToggleButtonGroup";
 import { useCobitData } from "../../hooks/useCobitData";
-import { useDynamicFilters } from "../../hooks/useDynamicFilters";
+import { useSelectiveDynamicFilters } from "../../hooks/useSelectiveDynamicFilters";
+import { useSelectionDetails } from "../../hooks/useSelectionDetails";
+import { SelectionInfo } from "../atoms/SelectionInfo";
 // import { Dominio } from "../../lib/database"; // Comentado temporalmente
 import { useState, useEffect, useMemo } from "react";
+import { useHydration } from "../../hooks/useHydration";
 
 interface SelectedObjective {
   code: string;
@@ -44,17 +47,31 @@ export default function FilterSidebar({
   onBackToNormal,
   isSpecificMode = false,
 }: FilterSidebarProps) {
+  // Hook para detectar hidratación
+  const isHydrated = useHydration();
   // Cargar datos desde la base de datos
   const { dominios, objetivos, herramientas, loading, error } = useCobitData();
 
-  // Usar filtrado dinámico
+  // Usar filtrado dinámico selectivo
   const {
     filteredDominios,
     filteredObjetivos,
     filteredHerramientas,
     loading: dynamicLoading,
     error: dynamicError,
-  } = useDynamicFilters(dominios, objetivos, herramientas, filters);
+    loadingStates,
+    updateFilter,
+  } = useSelectiveDynamicFilters(dominios, objetivos, herramientas, filters);
+
+  // Obtener detalles de elementos seleccionados
+  const selectionDetails = useSelectionDetails(
+    objetivos,
+    herramientas,
+    dominios,
+    filters.objetivo,
+    filters.herramienta,
+    filters.dominio
+  );
 
   // Estado para herramientas filtradas en modo específico
   const [herramientasFiltradas, setHerramientasFiltradas] = useState<
@@ -140,15 +157,6 @@ export default function FilterSidebar({
     ? herramientasFiltradas.filter((h) => h && h.id)
     : filteredHerramientas.filter((h) => h && h.id);
 
-  // Debug: verificar datos de dominios
-  console.log("Debug dominios:", {
-    dominios,
-    finalFilteredDominios,
-    loading,
-    error,
-    isSpecificMode,
-  });
-
   // Transformar datos para los selectores (ya filtrados arriba)
   const dominioOptions = finalFilteredDominios.map(
     (dominio) => `${dominio.codigo} - ${dominio.nombre}`
@@ -166,8 +174,8 @@ export default function FilterSidebar({
   // Solo mostrar loading si hay filtros activos o si está cargando datos base
   const shouldShowLoading = loading || (hasActiveFilters && dynamicLoading);
 
-  // Mostrar estado de carga
-  if (shouldShowLoading) {
+  // Mostrar estado de carga o esperar hidratación
+  if (shouldShowLoading || !isHydrated) {
     return (
       <div className={`w-80 p-6 ${className}`}>
         <div className="space-y-6">
@@ -183,11 +191,16 @@ export default function FilterSidebar({
                 className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-2"
                 style={{ borderColor: "var(--cobit-blue)" }}
               ></div>
-              <p className="text-gray-600 b1">
-                {hasActiveFilters
-                  ? "Aplicando filtros..."
-                  : "Cargando datos..."}
-              </p>
+              <div className="text-gray-600 b1 flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                <span>
+                  {!isHydrated
+                    ? "Inicializando..."
+                    : hasActiveFilters
+                    ? "Aplicando filtros..."
+                    : "Cargando datos..."}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -361,46 +374,59 @@ export default function FilterSidebar({
 
           {/* Filtros */}
           <div className="space-y-4">
-            {dominioOptions.length > 0 ? (
-              <MultiSelect
-                label="Dominio"
-                options={dominioOptions}
-                selectedValues={filters.dominio}
-                onChange={(values) => onFilterChange("dominio", values)}
-                placeholder="Seleccionar dominios"
-              />
-            ) : (
-              <div className="space-y-2">
-                <label
-                  className="block text-sm font-medium"
-                  style={{ color: "var(--cobit-blue)" }}
-                >
-                  Dominio
-                </label>
-                <div className="text-sm text-gray-500">
-                  {loading || dynamicLoading
-                    ? "Cargando dominios..."
-                    : "No hay dominios disponibles"}
-                </div>
-              </div>
-            )}
+            <SmartFilterSelect
+              label="Dominio"
+              options={dominioOptions}
+              selectedValues={filters.dominio}
+              onChange={(values) => onFilterChange("dominio", values)}
+              loading={loadingStates.dominios}
+              placeholder="Seleccionar dominios"
+            />
 
-            <MultiSelect
+            <SmartFilterSelect
               label="Objetivo"
               options={objetivoOptions}
               selectedValues={filters.objetivo}
               onChange={(values) => onFilterChange("objetivo", values)}
+              loading={loadingStates.objetivos}
               placeholder="Seleccionar objetivos"
             />
 
-            <MultiSelect
+            <SmartFilterSelect
               label="Herramienta"
               options={herramientaOptions}
               selectedValues={filters.herramienta}
               onChange={(values) => onFilterChange("herramienta", values)}
+              loading={loadingStates.herramientas}
               placeholder="Seleccionar herramientas"
             />
           </div>
+
+          {/* Información detallada de selecciones */}
+          {(filters.objetivo.length > 0 ||
+            filters.herramienta.length > 0 ||
+            filters.dominio.length > 0) && (
+            <div className="space-y-3">
+              {filters.objetivo.length > 0 && (
+                <SelectionInfo
+                  selectedItems={selectionDetails.objetivos}
+                  type="objetivos"
+                />
+              )}
+              {filters.herramienta.length > 0 && (
+                <SelectionInfo
+                  selectedItems={selectionDetails.herramientas}
+                  type="herramientas"
+                />
+              )}
+              {filters.dominio.length > 0 && (
+                <SelectionInfo
+                  selectedItems={selectionDetails.dominios}
+                  type="dominios"
+                />
+              )}
+            </div>
+          )}
 
           {/* Información de datos filtrados (solo en modo específico) */}
           {isSpecificMode && (
