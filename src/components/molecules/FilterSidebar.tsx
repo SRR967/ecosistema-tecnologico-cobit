@@ -1,7 +1,6 @@
 "use client";
 
 import { SmartFilterSelect } from "../atoms/SmartFilterSelect";
-import MultiSelect from "../atoms/MultiSelect";
 import ToggleButtonGroup from "../atoms/ToggleButtonGroup";
 import { useCobitData } from "../../hooks/useCobitData";
 import { useSelectiveDynamicFilters } from "../../hooks/useSelectiveDynamicFilters";
@@ -60,7 +59,6 @@ export default function FilterSidebar({
     loading: dynamicLoading,
     error: dynamicError,
     loadingStates,
-    updateFilter,
   } = useSelectiveDynamicFilters(dominios, objetivos, herramientas, filters);
 
   // Obtener detalles de elementos seleccionados
@@ -113,7 +111,7 @@ export default function FilterSidebar({
             setHerramientasFiltradas(data.herramientas);
           }
         })
-        .catch((error) => {
+        .catch(() => {
           // Fallback: usar todas las herramientas
           setHerramientasFiltradas(
             memoizedHerramientas.map((h) => ({
@@ -167,7 +165,7 @@ export default function FilterSidebar({
   );
 
   // Detectar si hay filtros activos
-  const hasActiveFilters = Object.entries(filters).some(([key, filter]) => {
+  const hasActiveFilters = Object.entries(filters).some(([, filter]) => {
     return Array.isArray(filter) && filter.length > 0;
   });
 
@@ -275,7 +273,7 @@ export default function FilterSidebar({
               {hasActiveFilters && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   {
-                    Object.entries(filters).filter(([key, f]) => {
+                    Object.entries(filters).filter(([, f]) => {
                       return Array.isArray(f) && f.length > 0;
                     }).length
                   }
@@ -339,7 +337,7 @@ export default function FilterSidebar({
                 {hasActiveFilters && (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     {
-                      Object.entries(filters).filter(([key, f]) => {
+                      Object.entries(filters).filter(([, f]) => {
                         return Array.isArray(f) && f.length > 0;
                       }).length
                     }

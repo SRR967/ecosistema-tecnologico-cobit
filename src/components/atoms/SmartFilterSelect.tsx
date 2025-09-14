@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MultiSelect } from "./MultiSelect";
 
 interface SmartFilterSelectProps {
   label: string;

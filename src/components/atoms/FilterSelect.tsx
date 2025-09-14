@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import MultiSelect from "./MultiSelect";
-import FilterSelect from "./FilterSelect";
 
 interface ResponsiveFilterProps {
   label: string;

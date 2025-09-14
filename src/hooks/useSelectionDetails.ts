@@ -40,7 +40,7 @@ export function useSelectionDetails(
       .map(obj => ({
         id: obj.id,
         name: obj.nombre,
-        level: obj.nivel_capacidad || 0,
+        level: 0, // Los objetivos no tienen nivel de capacidad directo
         domain: obj.dominio_codigo || ''
       }));
     
@@ -67,7 +67,7 @@ export function useSelectionDetails(
     const filtered = allDominios
       .filter(dominio => selectedDominios.includes(dominio.nombre))
       .map(dominio => ({
-        id: dominio.id,
+        id: dominio.codigo,
         name: dominio.nombre
       }));
     

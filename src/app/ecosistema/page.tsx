@@ -78,9 +78,9 @@ function EcosistemaContent() {
     setIsSpecificMode(false);
     setSelectedObjectives([]);
     setFilters({
-      dominio: "",
+      dominio: [],
       objetivo: [],
-      herramienta: "",
+      herramienta: [],
     });
     // Limpiar URL
     window.history.replaceState({}, document.title, window.location.pathname);

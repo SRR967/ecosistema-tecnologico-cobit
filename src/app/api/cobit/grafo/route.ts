@@ -182,7 +182,7 @@ export async function GET(request: Request) {
     };
 
     return NextResponse.json(grafoData);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Error al cargar los datos del grafo' },
       { status: 500 }

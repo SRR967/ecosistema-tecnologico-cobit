@@ -29,8 +29,8 @@ export function useSmartDynamicFilters(
   const [filteredDominios, setFilteredDominios] = useState<Dominio[]>(allDominios);
   const [filteredObjetivos, setFilteredObjetivos] = useState<OGG[]>(allObjetivos);
   const [filteredHerramientas, setFilteredHerramientas] = useState<Herramienta[]>(allHerramientas);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading] = useState(false);
+  const [error] = useState<string | null>(null);
   const [loadingStates, setLoadingStates] = useState({
     dominios: false,
     objetivos: false,

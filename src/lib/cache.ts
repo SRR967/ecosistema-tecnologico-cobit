@@ -7,7 +7,7 @@ interface CacheEntry<T> {
 }
 
 export class SimpleCache {
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private maxSize = 100; // Máximo número de entradas en caché
   private defaultTTL = 5 * 60 * 1000; // 5 minutos por defecto
 
@@ -18,7 +18,9 @@ export class SimpleCache {
     // Si el caché está lleno, eliminar la entrada más antigua
     if (this.cache.size >= this.maxSize) {
       const oldestKey = this.cache.keys().next().value;
-      this.cache.delete(oldestKey);
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+      }
     }
 
     this.cache.set(key, {
@@ -78,7 +80,7 @@ export class SimpleCache {
   }
 
   // Generar clave de caché basada en parámetros
-  static generateKey(prefix: string, params: Record<string, any>): string {
+  static generateKey(prefix: string, params: Record<string, unknown>): string {
     const sortedParams = Object.keys(params)
       .sort()
       .map(key => `${key}=${JSON.stringify(params[key])}`)

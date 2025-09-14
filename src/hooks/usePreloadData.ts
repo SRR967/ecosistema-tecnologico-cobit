@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react';
 
 // Hook para pre-cargar datos en segundo plano
 export function usePreloadData() {
-  const preloadCache = useRef<Map<string, any>>(new Map());
-  const preloadPromises = useRef<Map<string, Promise<any>>>(new Map());
+  const preloadCache = useRef<Map<string, unknown>>(new Map());
+  const preloadPromises = useRef<Map<string, Promise<unknown>>>(new Map());
 
   // Función para pre-cargar datos
-  const preload = async (key: string, fetchFn: () => Promise<any>) => {
+  const preload = async (key: string, fetchFn: () => Promise<unknown>) => {
     // Si ya está en caché, no hacer nada
     if (preloadCache.current.has(key)) {
       return preloadCache.current.get(key);

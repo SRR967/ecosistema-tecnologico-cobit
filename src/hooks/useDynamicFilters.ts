@@ -45,7 +45,7 @@ export function useDynamicFilters(
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Cache simple para evitar consultas repetidas
-  const cacheRef = useRef<Map<string, any>>(new Map());
+  const cacheRef = useRef<Map<string, { dominios: Dominio[]; objetivos: OGG[]; herramientas: Herramienta[] }>>(new Map());
 
   const fetchFilteredData = useCallback(async () => {
     try {
@@ -76,11 +76,13 @@ export function useDynamicFilters(
       // Verificar caché
       if (cacheRef.current.has(cacheKey)) {
         const cachedData = cacheRef.current.get(cacheKey);
-        setFilteredDominios(cachedData.dominios);
-        setFilteredObjetivos(cachedData.objetivos);
-        setFilteredHerramientas(cachedData.herramientas);
-        setLoading(false);
-        return;
+        if (cachedData) {
+          setFilteredDominios(cachedData.dominios);
+          setFilteredObjetivos(cachedData.objetivos);
+          setFilteredHerramientas(cachedData.herramientas);
+          setLoading(false);
+          return;
+        }
       }
 
       // Crear parámetros para las consultas solo si hay filtros
@@ -143,7 +145,9 @@ export function useDynamicFilters(
       // Guardar en caché (limitar tamaño del caché)
       if (cacheRef.current.size > 50) {
         const firstKey = cacheRef.current.keys().next().value;
-        cacheRef.current.delete(firstKey);
+        if (firstKey) {
+          cacheRef.current.delete(firstKey);
+        }
       }
       cacheRef.current.set(cacheKey, {
         dominios: finalDominios,
