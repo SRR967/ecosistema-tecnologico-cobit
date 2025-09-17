@@ -20,34 +20,39 @@ export default function Home() {
       {/* Main Content */}
       <div className="max-w-6xl mx-auto py-12 px-4 space-y-8">
         {/* ¿Qué es COBIT 2019? */}
-        <InfoSection title="¿Qué es COBIT 2019?">
+        <InfoSection title="¿Qué es nuestro ecosistema tecnológico?">
           <p>
-            COBIT 2019 es un marco de referencia desarrollado por ISACA para la
-            gobernanza y gestión de las tecnologías de la información en las
-            organizaciones. Su finalidad es proporcionar un conjunto
-            estructurado de principios, objetivos y prácticas que faciliten la
-            creación de valor a partir de la tecnología, la mitigación de
-            riesgos relacionados con la información y la optimización de los
-            recursos disponibles. Esta versión actualizada de COBIT se adapta a
-            las necesidades actuales de transformación digital, ofreciendo una
-            guía flexible que puede ajustarse a distintos tamaños de
-            organización y a contextos empresariales diversos.
+            El ecosistema tecnológico se concibe como un entorno que integra los
+            Objetivos de Gobierno y Gestión (OGG) de COBIT 2019 con sus
+            prácticas y actividades correspondientes, vinculándolos con
+            herramientas de TI que hacen posible su implementación. Este modelo
+            permite visualizar cómo cada objetivo se despliega en prácticas y
+            actividades específicas, y cómo dichas actividades encuentran
+            soporte en soluciones tecnológicas concretas. De esta manera, el
+            ecosistema ofrece una visión que facilita identificar qué
+            herramientas respaldan los distintos niveles del marco, analizar su
+            cobertura y orientar la ejecución de hojas de ruta en contextos
+            organizacionales reales.
           </p>
         </InfoSection>
 
         {/* Propósito del proyecto */}
         <InfoSection title="Propósito del proyecto">
           <p>
-            El proyecto de grado tiene como propósito diseñar un ecosistema
-            tecnológico que permita llevar a la práctica las hojas de ruta
-            planteadas por COBIT 2019. Para ello, se propone identificar y
-            organizar herramientas de tecnologías de la información que den
-            soporte directo a las prácticas y actividades definidas en los
-            Objetivos de Gobierno y Gestión (OGG). De esta manera, se busca
-            cerrar la brecha existente entre el nivel conceptual del marco y su
-            aplicación en escenarios organizacionales, ofreciendo una estructura
-            tecnológica que acompañe desde la planificación hasta la evaluación
-            de las acciones propuestas.
+            El propósito central de este proyecto es posibilitar la
+            implementación de hojas de ruta basadas en COBIT 2019. Este marco,
+            ampliamente adoptado por las organizaciones, orienta la toma de
+            decisiones estratégicas a través de Objetivos de Gobierno y Gestión
+            (OGG), que se desglosan en procesos, prácticas y actividades. A
+            partir de estos elementos se construyen hojas de ruta que indican
+            qué pasos seguir para su aplicación. Sin embargo, uno de los
+            principales desafíos identificados radica en que COBIT 2019, a pesar
+            de ser un marco ampliamente reconocido, no ofrece una guía explícita
+            sobre cómo implementar en la práctica las actividades propuestas ni
+            qué herramientas de TI utilizar para soportarlas. En este contexto
+            surge la pregunta central que da sentido al proyecto: ¿cómo llevar a
+            la práctica estas hojas de ruta y con qué herramientas de TI es
+            posible hacerlo?.
           </p>
         </InfoSection>
 
