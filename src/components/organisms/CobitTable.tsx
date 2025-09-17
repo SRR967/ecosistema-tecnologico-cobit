@@ -316,9 +316,12 @@ export default function CobitTable({
 
         {/* Resumen de herramientas */}
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          <h3 className="text-sm font-semibold text-gray-700 mb-1">
             Resumen de Herramientas
           </h3>
+          <p className="text-gray-600 b1 mb-3">
+            Número de actividades que cubre cada herramienta
+          </p>
           <ToolSummaryPills
             filters={filters}
             selectedObjectives={selectedObjectives}

@@ -158,7 +158,9 @@ export default function CobitGraph({
           if (zoomRef.current && svgRef.current) {
             const svgElement = svgRef.current;
             // Usar una aproximación más directa para evitar problemas de tipos
-            (svgElement as any).__zoom = newTransform;
+            (
+              svgElement as SVGSVGElement & { __zoom?: d3.ZoomTransform }
+            ).__zoom = newTransform;
           }
         });
     }, 350); // 350ms para que coincida con la duración de la animación del sidebar
