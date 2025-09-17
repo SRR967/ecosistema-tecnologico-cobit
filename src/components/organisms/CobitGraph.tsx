@@ -45,7 +45,7 @@ function getImageName(toolId: string): string {
     MantisBT: "MantisBT.png",
     Moodle: "Moodle.png",
     MySQL: "MySQL.png",
-    "Open Audit": "Open Audit.png",
+    "Open Audit": "OpenAudit.png",
     "Open Source Risk Engine": "Open Source Risk Engine.png",
     OpenScap: "OpenScap.png",
     OpenSSH: "OpenSSH.png",
