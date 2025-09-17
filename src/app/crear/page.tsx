@@ -42,6 +42,7 @@ export default function CrearEcosistemaPage() {
     herramienta: [] as string[],
   });
   const [viewMode, setViewMode] = useState<"grafico" | "lista">("grafico");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleObjectiveToggle = (code: string) => {
     const existingObjective = selectedObjectives.find(
@@ -218,47 +219,41 @@ export default function CrearEcosistemaPage() {
         </div>
       ) : (
         // Vista del ecosistema creado
-        <div className="flex h-full" style={{ height: "calc(100vh - 4rem)" }}>
-          {/* Sidebar con márgenes y bordes */}
-          <div className="ml-6 mt-6 mb-6 flex-shrink-0">
-            <FilterSidebar
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              onClearFilters={handleClearFilters}
-              viewMode={viewMode}
-              onViewModeChange={handleViewModeChange}
-              selectedObjectives={selectedObjectivesForFilter}
-              onBackToNormal={handleBackToSelection}
-              isSpecificMode={true}
-              className="bg-white rounded-lg shadow-sm border border-gray-200"
-            />
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 overflow-hidden">
-            <div className="w-full h-full">
-              {/* Contenido basado en el modo de vista */}
-              {viewMode === "lista" ? (
-                <div className="h-full overflow-y-auto">
-                  <CobitTable
-                    filters={filters}
-                    selectedObjectives={selectedObjectivesForFilter}
-                    className="shadow-sm"
-                  />
-                </div>
-              ) : (
-                <CobitGraph
-                  filters={{
-                    dominio: filters.dominio,
-                    objetivo: filters.objetivo,
-                    herramienta: filters.herramienta,
-                  }}
+        <div className="h-full" style={{ height: "calc(100vh - 4rem)" }}>
+          <FilterSidebar
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onClearFilters={handleClearFilters}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            selectedObjectives={selectedObjectivesForFilter}
+            onBackToNormal={handleBackToSelection}
+            isSpecificMode={true}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 m-6"
+            onSidebarToggle={setSidebarOpen}
+          >
+            {/* Contenido basado en el modo de vista */}
+            {viewMode === "lista" ? (
+              <div className="h-full overflow-y-auto">
+                <CobitTable
+                  filters={filters}
                   selectedObjectives={selectedObjectivesForFilter}
-                  className="m-4"
+                  className="shadow-sm"
                 />
-              )}
-            </div>
-          </div>
+              </div>
+            ) : (
+              <CobitGraph
+                filters={{
+                  dominio: filters.dominio,
+                  objetivo: filters.objetivo,
+                  herramienta: filters.herramienta,
+                }}
+                selectedObjectives={selectedObjectivesForFilter}
+                className="m-4"
+                sidebarOpen={sidebarOpen}
+              />
+            )}
+          </FilterSidebar>
         </div>
       )}
     </div>

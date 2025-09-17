@@ -15,6 +15,7 @@ interface CobitGraphProps {
   filters: GraphFilters;
   selectedObjectives?: SelectedObjective[];
   className?: string;
+  sidebarOpen?: boolean; // Nueva prop para detectar estado del sidebar
 }
 
 // Función para mapear ID de herramienta con nombre de imagen
@@ -92,6 +93,7 @@ export default function CobitGraph({
   filters,
   selectedObjectives,
   className = "",
+  sidebarOpen = false,
 }: CobitGraphProps) {
   const { data, loading, error } = useCobitGraph(filters, selectedObjectives);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -124,6 +126,45 @@ export default function CobitGraph({
       nodeId: "",
     });
   };
+
+  // Efecto para re-centrar el gráfico cuando cambia el estado del sidebar
+  useEffect(() => {
+    if (!svgRef.current || !zoomRef.current) return;
+
+    // Esperar un poco para que la animación del sidebar termine
+    const timer = setTimeout(() => {
+      const svg = d3.select(svgRef.current);
+      const g = svg.select("g");
+
+      if (g.empty()) return;
+
+      // Obtener el ancho real del contenedor del SVG
+      const svgElement = svgRef.current;
+      const containerWidth = svgElement?.parentElement?.clientWidth || 860;
+      const svgWidth = 860; // Ancho fijo del SVG
+
+      // Calcular el offset para centrar el gráfico en el contenedor real
+      const offsetX = (containerWidth - svgWidth) / 2;
+
+      // Crear la nueva transformación
+      const newTransform = d3.zoomIdentity.translate(Math.max(0, offsetX), 0);
+
+      // Re-centrar el gráfico con una transición suave
+      g.transition()
+        .duration(500)
+        .attr("transform", newTransform.toString())
+        .on("end", () => {
+          // Sincronizar la transformación interna de D3.js después de la transición
+          if (zoomRef.current && svgRef.current) {
+            const svgElement = svgRef.current;
+            // Usar una aproximación más directa para evitar problemas de tipos
+            (svgElement as any).__zoom = newTransform;
+          }
+        });
+    }, 350); // 350ms para que coincida con la duración de la animación del sidebar
+
+    return () => clearTimeout(timer);
+  }, [sidebarOpen]);
 
   useEffect(() => {
     if (!data.nodes.length || !svgRef.current) return;
@@ -243,7 +284,7 @@ export default function CobitGraph({
           .distance(180) // Aumentado significativamente para más separación
       )
       .force("charge", d3.forceManyBody().strength(-400)) // Más repulsión
-      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("center", d3.forceCenter(width / 2, height / 2)) // Centro real del contenedor
       .force(
         "collision",
         d3.forceCollide().radius((d) => {
@@ -256,7 +297,7 @@ export default function CobitGraph({
       )
       .force(
         "x",
-        d3.forceX(width / 2).strength(0.1) // Fuerza suave hacia el centro X
+        d3.forceX(width / 2).strength(0.1) // Fuerza suave hacia el centro real del contenedor
       )
       .force(
         "y",

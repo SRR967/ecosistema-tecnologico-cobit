@@ -9,6 +9,7 @@ import { SelectionInfo } from "../atoms/SelectionInfo";
 // import { Dominio } from "../../lib/database"; // Comentado temporalmente
 import { useState, useEffect, useMemo } from "react";
 import { useHydration } from "../../hooks/useHydration";
+import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 
 interface SelectedObjective {
   code: string;
@@ -33,6 +34,9 @@ interface FilterSidebarProps {
   selectedObjectives?: SelectedObjective[];
   onBackToNormal?: () => void;
   isSpecificMode?: boolean;
+  // Props para comportamiento hamburger
+  children?: React.ReactNode;
+  onSidebarToggle?: (isOpen: boolean) => void; // Nueva prop para notificar cambios
 }
 
 export default function FilterSidebar({
@@ -45,9 +49,14 @@ export default function FilterSidebar({
   selectedObjectives = [],
   onBackToNormal,
   isSpecificMode = false,
+  children,
+  onSidebarToggle,
 }: FilterSidebarProps) {
   // Hook para detectar hidratación
   const isHydrated = useHydration();
+
+  // Estado para controlar si el sidebar está abierto/cerrado
+  const [isOpen, setIsOpen] = useState(false);
   // Cargar datos desde la base de datos
   const { dominios, objetivos, herramientas, loading, error } = useCobitData();
 
@@ -234,232 +243,266 @@ export default function FilterSidebar({
   }
 
   return (
-    <div className={`w-80 h-full flex flex-col ${className}`}>
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="space-y-6">
-          {/* Título con indicador y botón de limpiar */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {/* Botón volver (solo en modo específico) */}
-              {isSpecificMode && onBackToNormal && (
-                <button
-                  onClick={onBackToNormal}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                  title="Volver a vista normal"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                    />
-                  </svg>
-                </button>
-              )}
-              <h2
-                className={
-                  isSpecificMode ? "text-xl font-bold" : "text-2xl font-bold"
-                }
-                style={{ color: "var(--cobit-blue)" }}
-              >
-                {isSpecificMode ? "Ecosistema Filtrado" : "Filtros"}
-              </h2>
-              {hasActiveFilters && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {
-                    Object.entries(filters).filter(([, f]) => {
-                      return Array.isArray(f) && f.length > 0;
-                    }).length
-                  }
-                </span>
-              )}
-            </div>
-
-            {!isSpecificMode && hasActiveFilters && (
-              <button
-                onClick={onClearFilters}
-                className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Limpiar todos los filtros"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-                <span>Limpiar</span>
-              </button>
-            )}
-          </div>
-
-          {/* Objetivos seleccionados (solo en modo específico) */}
-          {isSpecificMode && memoizedSelectedObjectives.length > 0 && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h3 className="text-sm font-semibold text-blue-800 mb-2">
-                Objetivos Seleccionados:
-              </h3>
-              <div className="space-y-1">
-                {memoizedSelectedObjectives.map((obj, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <span className="text-blue-700 font-medium">
-                      {obj.code}
-                    </span>
-                    <span className="text-blue-600">Nivel {obj.level}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+    <div className="flex h-full">
+      {/* Botón hamburger fijo */}
+      <div className="flex flex-col">
+        <button
+          onClick={() => {
+            const newState = !isOpen;
+            setIsOpen(newState);
+            onSidebarToggle?.(newState);
+          }}
+          className="p-3 text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+          title={isOpen ? "Cerrar filtros" : "Abrir filtros"}
+        >
+          {isOpen ? (
+            <XMarkIcon className="w-6 h-6" />
+          ) : (
+            <Bars3Icon className="w-6 h-6" />
           )}
+        </button>
+      </div>
 
-          {/* Sección de filtros con título condicional */}
-          {isSpecificMode && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <h3
-                  className="text-lg font-semibold"
-                  style={{ color: "var(--cobit-blue)" }}
-                >
-                  Filtros Adicionales
-                </h3>
-                {hasActiveFilters && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {
-                      Object.entries(filters).filter(([, f]) => {
-                        return Array.isArray(f) && f.length > 0;
-                      }).length
+      {/* Sidebar con animación */}
+      <div
+        className={`transition-all duration-300 ease-in-out ${
+          isOpen ? "w-80" : "w-0"
+        } overflow-hidden`}
+      >
+        <div className="w-80 h-full flex flex-col bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-6">
+              {/* Título con indicador y botón de limpiar */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {/* Botón volver (solo en modo específico) */}
+                  {isSpecificMode && onBackToNormal && (
+                    <button
+                      onClick={onBackToNormal}
+                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      title="Volver a vista normal"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                  <h2
+                    className={
+                      isSpecificMode
+                        ? "text-xl font-bold"
+                        : "text-2xl font-bold"
                     }
-                  </span>
+                    style={{ color: "var(--cobit-blue)" }}
+                  >
+                    {isSpecificMode ? "Ecosistema Filtrado" : "Filtros"}
+                  </h2>
+                  {hasActiveFilters && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {
+                        Object.entries(filters).filter(([, f]) => {
+                          return Array.isArray(f) && f.length > 0;
+                        }).length
+                      }
+                    </span>
+                  )}
+                </div>
+
+                {!isSpecificMode && hasActiveFilters && (
+                  <button
+                    onClick={onClearFilters}
+                    className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    title="Limpiar todos los filtros"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                    <span>Limpiar</span>
+                  </button>
                 )}
               </div>
 
-              {hasActiveFilters && (
-                <button
-                  onClick={onClearFilters}
-                  className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                  title="Limpiar filtros adicionales"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
+              {/* Objetivos seleccionados (solo en modo específico) */}
+              {isSpecificMode && memoizedSelectedObjectives.length > 0 && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-semibold text-blue-800 mb-2">
+                    Objetivos Seleccionados:
+                  </h3>
+                  <div className="space-y-1">
+                    {memoizedSelectedObjectives.map((obj, index) => (
+                      <div key={index} className="flex justify-between text-sm">
+                        <span className="text-blue-700 font-medium">
+                          {obj.code}
+                        </span>
+                        <span className="text-blue-600">Nivel {obj.level}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sección de filtros con título condicional */}
+              {isSpecificMode && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <h3
+                      className="text-lg font-semibold"
+                      style={{ color: "var(--cobit-blue)" }}
+                    >
+                      Filtros Adicionales
+                    </h3>
+                    {hasActiveFilters && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {
+                          Object.entries(filters).filter(([, f]) => {
+                            return Array.isArray(f) && f.length > 0;
+                          }).length
+                        }
+                      </span>
+                    )}
+                  </div>
+
+                  {hasActiveFilters && (
+                    <button
+                      onClick={onClearFilters}
+                      className="flex items-center space-x-1 px-3 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      title="Limpiar filtros adicionales"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                      <span>Limpiar</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Filtros */}
+              <div className="space-y-4">
+                <SmartFilterSelect
+                  label="Dominio"
+                  options={dominioOptions}
+                  selectedValues={filters.dominio}
+                  onChange={(values) => onFilterChange("dominio", values)}
+                  loading={loadingStates.dominios}
+                  placeholder="Seleccionar dominios"
+                />
+
+                <SmartFilterSelect
+                  label="Objetivo"
+                  options={objetivoOptions}
+                  selectedValues={filters.objetivo}
+                  onChange={(values) => onFilterChange("objetivo", values)}
+                  loading={loadingStates.objetivos}
+                  placeholder="Seleccionar objetivos"
+                />
+
+                <SmartFilterSelect
+                  label="Herramienta"
+                  options={herramientaOptions}
+                  selectedValues={filters.herramienta}
+                  onChange={(values) => onFilterChange("herramienta", values)}
+                  loading={loadingStates.herramientas}
+                  placeholder="Seleccionar herramientas"
+                />
+              </div>
+
+              {/* Información detallada de selecciones */}
+              {(filters.objetivo.length > 0 ||
+                filters.herramienta.length > 0 ||
+                filters.dominio.length > 0) && (
+                <div className="space-y-3">
+                  {filters.objetivo.length > 0 && (
+                    <SelectionInfo
+                      selectedItems={selectionDetails.objetivos}
+                      type="objetivos"
                     />
-                  </svg>
-                  <span>Limpiar</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Filtros */}
-          <div className="space-y-4">
-            <SmartFilterSelect
-              label="Dominio"
-              options={dominioOptions}
-              selectedValues={filters.dominio}
-              onChange={(values) => onFilterChange("dominio", values)}
-              loading={loadingStates.dominios}
-              placeholder="Seleccionar dominios"
-            />
-
-            <SmartFilterSelect
-              label="Objetivo"
-              options={objetivoOptions}
-              selectedValues={filters.objetivo}
-              onChange={(values) => onFilterChange("objetivo", values)}
-              loading={loadingStates.objetivos}
-              placeholder="Seleccionar objetivos"
-            />
-
-            <SmartFilterSelect
-              label="Herramienta"
-              options={herramientaOptions}
-              selectedValues={filters.herramienta}
-              onChange={(values) => onFilterChange("herramienta", values)}
-              loading={loadingStates.herramientas}
-              placeholder="Seleccionar herramientas"
-            />
-          </div>
-
-          {/* Información detallada de selecciones */}
-          {(filters.objetivo.length > 0 ||
-            filters.herramienta.length > 0 ||
-            filters.dominio.length > 0) && (
-            <div className="space-y-3">
-              {filters.objetivo.length > 0 && (
-                <SelectionInfo
-                  selectedItems={selectionDetails.objetivos}
-                  type="objetivos"
-                />
-              )}
-              {filters.herramienta.length > 0 && (
-                <SelectionInfo
-                  selectedItems={selectionDetails.herramientas}
-                  type="herramientas"
-                />
-              )}
-              {filters.dominio.length > 0 && (
-                <SelectionInfo
-                  selectedItems={selectionDetails.dominios}
-                  type="dominios"
-                />
-              )}
-            </div>
-          )}
-
-          {/* Información de datos filtrados (solo en modo específico) */}
-          {isSpecificMode && (
-            <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-600">
-              <div className="space-y-1">
-                <div>
-                  • {finalFilteredDominios.length} dominio(s) disponible(s)
+                  )}
+                  {filters.herramienta.length > 0 && (
+                    <SelectionInfo
+                      selectedItems={selectionDetails.herramientas}
+                      type="herramientas"
+                    />
+                  )}
+                  {filters.dominio.length > 0 && (
+                    <SelectionInfo
+                      selectedItems={selectionDetails.dominios}
+                      type="dominios"
+                    />
+                  )}
                 </div>
-                <div>
-                  • {finalFilteredObjetivos.length} objetivo(s) seleccionado(s)
+              )}
+
+              {/* Información de datos filtrados (solo en modo específico) */}
+              {isSpecificMode && (
+                <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-600">
+                  <div className="space-y-1">
+                    <div>
+                      • {finalFilteredDominios.length} dominio(s) disponible(s)
+                    </div>
+                    <div>
+                      • {finalFilteredObjetivos.length} objetivo(s)
+                      seleccionado(s)
+                    </div>
+                    <div>
+                      • {finalFilteredHerramientas.length} herramienta(s)
+                      relacionada(s)
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  • {finalFilteredHerramientas.length} herramienta(s)
-                  relacionada(s)
-                </div>
+              )}
+
+              {/* Separador */}
+              <div className="border-t border-gray-200 pt-4">
+                <ToggleButtonGroup
+                  label="Vista"
+                  options={[
+                    { value: "grafico", label: "Gráfico" },
+                    { value: "lista", label: "Lista" },
+                  ]}
+                  selectedValue={viewMode}
+                  onChange={(value) =>
+                    onViewModeChange(value as "grafico" | "lista")
+                  }
+                />
               </div>
             </div>
-          )}
-
-          {/* Separador */}
-          <div className="border-t border-gray-200 pt-4">
-            <ToggleButtonGroup
-              label="Vista"
-              options={[
-                { value: "grafico", label: "Gráfico" },
-                { value: "lista", label: "Lista" },
-              ]}
-              selectedValue={viewMode}
-              onChange={(value) =>
-                onViewModeChange(value as "grafico" | "lista")
-              }
-            />
           </div>
         </div>
       </div>
+
+      {/* Contenido principal */}
+      <div className="flex-1 h-full">{children}</div>
     </div>
   );
 }
