@@ -1,6 +1,14 @@
-# 🎯 COBIT Ecosistema
+# Ecosistema Tecnologico para la implementación de hojas de ruta de COBIT 2019
 
-Sistema de gestión y visualización del framework COBIT 2019, desarrollado con Next.js 14, TypeScript y PostgreSQL. Permite explorar objetivos, prácticas, actividades y herramientas de COBIT de manera interactiva.
+Este repositorio contiene el código fuente, la configuración y los recursos necesarios para desplegar el sistema web del Ecosistema Tecnológico COBIT, una herramienta diseñada como prototipo académico que que conecta los Objetivos de Gobierno y Gestión (OGG) de COBIT 2019 con herramientas de TI específicas que facilitan su implementación práctica.
+
+## Integrantes del proyecto
+
+- Jhoan Esteban Soler Giraldo
+- Johana Paola Palacio Osorio
+- Jesus Santiago Ramón Ramos
+
+  **Director del proyecto:** Luis Eduardo Sepúlveda Rodríguez
 
 ## 🚀 Inicio Rápido con Docker
 
