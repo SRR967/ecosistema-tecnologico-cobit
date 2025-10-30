@@ -1037,7 +1037,7 @@ INSERT INTO actividad (actividad_id, practica_id, descripcion, nivel_capacidad, 
 
 ('DSS05-P05-A03', 'DSS05-P05', 'Exigir que los visitantes estén escoltados en todo momento mientras se encuentren en el lugar.', 2, NULL, 'GLPI permite la asignación de acompañantes mediante tareas o responsables.', 'Se puede configurar como política interna de atención.', 'Formcreator'),
 
-('DSS05-P05-A04', 'DSS05-P05', 'Restrinja y monitoree el acceso a sitios de TI sensibles estableciendo restricciones perimetrales, como cercas, muros y dispositivos de seguridad en puertas interiores y exteriores.', 2, 'Zabbix', 'Monitorea dispositivos conectados, sensores o controladores de acceso mediante red.', 'Requiere hardware compatible.', 'SNMP / IoT / Controladores de acceso'),
+('DSS05-P05-A04', 'DSS05-P05', 'Restrinja y monitoree el acceso a sitios de TI sensibles estableciendo restricciones perimetrales, como cercas, muros y dispositivos de seguridad en puertas interiores y exteriores.', 2, NULL, 'No completarse con una herramienta tecnologica ya que hace parte de necesidades fisicas de la locación de los sitios de TI.', '-', '-'),
 
 ('DSS05-P05-A05', 'DSS05-P05', 'Gestionar las solicitudes para permitir el acceso debidamente autorizado a las instalaciones informáticas.', 3, 'GLPI', 'Tickets con validaciones y aprobaciones para control de acceso físico.', 'Puede tener flujos de autorización según cargos/responsables.', 'Formcreator / Approval Plugin'),
 

@@ -26,7 +26,7 @@ function EcosistemaContent() {
   });
 
   const [viewMode, setViewMode] = useState<"grafico" | "lista">("grafico");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Efecto para parsear parámetros URL de objetivos seleccionados
   useEffect(() => {

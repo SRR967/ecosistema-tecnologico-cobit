@@ -42,7 +42,7 @@ export default function CrearEcosistemaPage() {
     herramienta: [] as string[],
   });
   const [viewMode, setViewMode] = useState<"grafico" | "lista">("grafico");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleObjectiveToggle = (code: string) => {
     const existingObjective = selectedObjectives.find(
